@@ -121,7 +121,7 @@ android-app/
 4. چهار فایل `vazirmatn_regular.ttf` و `vazirmatn_medium.ttf` و `vazirmatn_semibold.ttf` و `vazirmatn_bold.ttf` را از پوشه دانلودی داخل `res/font` کپی کنید.
 5. فایل `font_family_vazirmatn.xml` را هم داخل همان پوشه `res/font` بسازید (محتوا در پوشه دانلودی موجود است).
 6. اگر پوشه `res/values-night/themes.xml` وجود دارد، فایل آن را حذف کنید.
-7. آیکون‌های `ic_launcher` را دست نزنید (قالب خودش ساخته است).
+7. پوشه‌های `mipmap-*` (آیکون برنامه) را از پوشه دانلودی داخل `res` کپی کنید؛ اگر قالب پوشه‌های mipmap خودش را ساخته، محتوایشان را جایگزین کنید.
 
 ### گام ۶ — اجرای برنامه
 
@@ -169,7 +169,7 @@ android-app/
 | خطای نسخه Gradle یا AGP | `distributionUrl` در `gradle-wrapper.properties` را روی `gradle-8.7-bin.zip` بگذارید |
 | خطای JDK / Java version | در **Settings > Build, Execution, Deployment > Build Tools > Gradle** گزینه **Gradle JDK** را روی Embedded JDK (۱۷ یا ۲۱) بگذارید |
 | خطای قرمز در فایل‌های Kotlin | نام پکیج‌ها (`com.example.classschedule`) و محل فایل‌ها را چک کنید؛ سپس **Build > Clean Project** و **Rebuild Project** |
-| پیدا نشدن `@mipmap/ic_launcher` | پروژه حتماً باید از قالب **Empty Activity** ساخته شده باشد (گام ۲) |
+| پیدا نشدن `@mipmap/ic_launcher` هنگام Build | پوشه‌های `mipmap-*` (آیکون برنامه) را از پوشه دانلودی داخل `res` کپی کنید؛ نسخه‌ی گیت‌هاب این پروژه آیکون‌ها را دارد |
 
 ## 🎨 شخصی‌سازی درون‌برنامه‌ای (بدون برنامه‌نویسی)
 
