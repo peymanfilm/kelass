@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- تم پایه؛ رنگ‌بندی اصلی در Compose (Theme.kt) مدیریت می‌شود -->
+    <style name="Theme.ClassSchedule" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

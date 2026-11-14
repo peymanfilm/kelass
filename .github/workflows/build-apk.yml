@@ -1,0 +1,64 @@
+# فایل GitHub Actions — ساخت خودکار فایل APK روی سرورهای گیت‌هاب
+# با این فایل نیازی به نصب Android Studio نیست!
+# کافی است فایل‌های پروژه را در گیت‌هاب آپلود کنید تا APK به صورت خودکار ساخته شود.
+
+name: "ساخت فایل APK"
+
+# هر بار که فایل جدیدی آپلود (push) کنید، ساخت دوباره انجام می‌شود.
+# با workflow_dispatch می‌توانید از تب Actions دکمه Run workflow را هم بزنید.
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: "ساخت APK برنامه هفتگی کلاسی"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "دریافت فایل‌های پروژه"
+        uses: actions/checkout@v4
+
+      - name: "نصب Java 17"
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: "پیدا کردن پوشه پروژه اندروید"
+        id: locate
+        run: |
+          # اگر فایل‌ها در ریشه مخزن باشند یا داخل پوشه android-app، هر دو حالت پشتیبانی می‌شود
+          if [ -f "settings.gradle.kts" ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f "android-app/settings.gradle.kts" ]; then
+            echo "dir=android-app" >> "$GITHUB_OUTPUT"
+          else
+            found="$(find . -name settings.gradle.kts -not -path '*/build/*' | head -n 1)"
+            echo "dir=$(dirname "$found")" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "ساخت فایل APK"
+        working-directory: ${{ steps.locate.outputs.dir }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: "آماده‌سازی فایل خروجی"
+        id: apk
+        run: |
+          apk_path="$(find . -type f -name 'app-debug.apk' | head -n 1)"
+          if [ -z "$apk_path" ]; then
+            apk_path="$(find . -type f -name '*.apk' | head -n 1)"
+          fi
+          echo "path=$apk_path" >> "$GITHUB_OUTPUT"
+          echo "فایل خروجی: $apk_path"
+
+      - name: "گذاشتن APK برای دانلود"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "ClassSchedule-APK"
+          path: ${{ steps.apk.outputs.path }}
+          retention-days: 90
