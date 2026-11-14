@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.update
  */
 data class AppSettings(
     val themeIndex: Int = 0,      // شماره تم رنگی (۰ تا ۲۳) — پیش‌فرض: بنفش
-    val viewMode: Int = VIEW_MODE_WEEK, // پیش‌فرض: نمای کامل هفته
+    val viewMode: Int = SettingsRepository.VIEW_MODE_WEEK, // پیش‌فرض: نمای کامل هفته
     val customColor: Int = -1     // رنگ دلخواه (ARGB) — منفی یعنی بدون رنگ دلخواه
 )
 
