@@ -41,4 +41,26 @@ object WeekDays {
             else -> SATURDAY
         }
     }
+
+    /**
+     * تاریخ شمسی روزهای هفته جاری؛ اندیس ۰ = شنبه این هفته تا اندیس ۶ = جمعه
+     * برای نمایش زیر نام روزها (مثل ۱۴۰۵/۸/۲۴)
+     */
+    fun weekJalaliDates(): List<JalaliDate> {
+        val calendar = Calendar.getInstance()
+        // فاصله از شنبه (شروع هفته ایرانی): شنبه = ۰ … جمعه = ۶
+        val daysSinceSaturday =
+            (calendar.get(Calendar.DAY_OF_WEEK) - Calendar.SATURDAY + 7) % 7
+        calendar.add(Calendar.DAY_OF_YEAR, -daysSinceSaturday)
+        val dates = ArrayList<JalaliDate>(7)
+        repeat(7) {
+            dates += gregorianToJalali(
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH) + 1,
+                calendar.get(Calendar.DAY_OF_MONTH)
+            )
+            calendar.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return dates
+    }
 }

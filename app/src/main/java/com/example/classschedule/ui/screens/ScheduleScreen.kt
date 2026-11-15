@@ -77,6 +77,9 @@ fun ScheduleScreen(viewModel: ScheduleViewModel) {
 
     val isWeekView = settings.viewMode == VIEW_MODE_WEEK
 
+    // تاریخ شمسی روزهای هفته جاری (مثل ۱۴۰۵/۸/۲۴) برای نمایش زیر نام روزها
+    val weekDateLabels = remember { WeekDays.weekJalaliDates().map { it.toCompactString() } }
+
     // صفحه‌گرد (Pager) که با تب‌ها هماهنگ است و روی روز «امروز» باز می‌شود
     val pagerState = rememberPagerState(initialPage = WeekDays.todayIndex()) {
         WeekDays.names.size
@@ -157,6 +160,7 @@ fun ScheduleScreen(viewModel: ScheduleViewModel) {
             WeekScheduleView(
                 allClasses = allClasses,
                 contentPadding = innerPadding,
+                weekDateLabels = weekDateLabels,
                 onEditClick = { editingClass = it },
                 onDeleteClick = { deletingClass = it },
                 onAddDayClick = { day ->
@@ -196,14 +200,20 @@ fun ScheduleScreen(viewModel: ScheduleViewModel) {
                                             FontWeight.Normal
                                         }
                                     )
-                                    // برچسب «امروز» زیر نام روز جاری
-                                    if (index == WeekDays.todayIndex()) {
-                                        Text(
-                                            text = "امروز",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
+                                    // تاریخ شمسی زیر نام روز؛ روز جاری با برچسب «امروز»
+                                    Text(
+                                        text = if (index == WeekDays.todayIndex()) {
+                                            "امروز · ${weekDateLabels[index]}"
+                                        } else {
+                                            weekDateLabels[index]
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (index == WeekDays.todayIndex()) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        }
+                                    )
                                 }
                             }
                         )
@@ -303,6 +313,7 @@ fun ScheduleScreen(viewModel: ScheduleViewModel) {
 private fun WeekScheduleView(
     allClasses: List<ClassSchedule>,
     contentPadding: PaddingValues,
+    weekDateLabels: List<String>,
     onEditClick: (ClassSchedule) -> Unit,
     onDeleteClick: (ClassSchedule) -> Unit,
     onAddDayClick: (Int) -> Unit
@@ -327,6 +338,7 @@ private fun WeekScheduleView(
             item(key = "header_$dayIndex") {
                 DayHeader(
                     dayName = dayName,
+                    jalaliDate = weekDateLabels[dayIndex],
                     isToday = dayIndex == today,
                     classCount = dayClasses.size,
                     onAddClick = { onAddDayClick(dayIndex) }
@@ -352,11 +364,12 @@ private fun WeekScheduleView(
 
 /**
  * سربرگ هر روز در نمای هفته:
- * نام روز + برچسب «امروز» + تعداد کلاس + دکمه افزودن مخصوص همان روز
+ * نام روز + تاریخ شمسی + برچسب «امروز» + تعداد کلاس + دکمه افزودن مخصوص همان روز
  */
 @Composable
 private fun DayHeader(
     dayName: String,
+    jalaliDate: String,
     isToday: Boolean,
     classCount: Int,
     onAddClick: () -> Unit
@@ -367,16 +380,24 @@ private fun DayHeader(
             .padding(top = 14.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = dayName,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (isToday) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
-        )
+        Column {
+            Text(
+                text = dayName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isToday) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+            // تاریخ شمسی این روز (مثل ۱۴۰۵/۸/۲۴)
+            Text(
+                text = jalaliDate,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
         if (isToday) {
             Spacer(modifier = Modifier.width(8.dp))
             Surface(
