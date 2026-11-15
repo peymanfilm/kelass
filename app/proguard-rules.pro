@@ -1,15 +1,6 @@
 # قوانین فشرده‌سازی (R8) برای نسخه نهایی
-# این قوانین از کار افتادن بخش‌های مهم برنامه هنگام فشرده‌سازی جلوگیری می‌کنند
+# کتابخانه‌های Room و Compose قوانین مخصوص خودشان را همراه دارند
+# و نیازی به قانون اضافه‌ای نیست؛ فقط یک قانون احتیاطی برای دیتابیس:
 
 # پایگاه داده Room: کلاس اصلی دیتابیس حفظ شود
 -keep class * extends androidx.room.RoomDatabase
-
-# مدل‌های داده Room (جدول‌ها) — نام فیلدها برای کوئری‌ها لازم است
--keepclassmembers class * {
-    @androidx.room.<methods> <fields>;
-}
-
-# تابع اصلی‌های Kotlin
--keepclassmembers class * {
-    public static void main(java.lang.String[]);
-}
