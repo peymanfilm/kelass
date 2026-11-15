@@ -1,5 +1,7 @@
 package com.example.classschedule.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
@@ -37,21 +40,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.classschedule.data.ClassSchedule
 import com.example.classschedule.data.Homework
+import com.example.classschedule.data.HomeworkImageStore
 import com.example.classschedule.data.SettingsRepository.Companion.VIEW_MODE_DAY
 import com.example.classschedule.data.SettingsRepository.Companion.VIEW_MODE_WEEK
 import com.example.classschedule.ui.components.ClassFormDialog
 import com.example.classschedule.ui.components.ColorSettingsDialog
 import com.example.classschedule.ui.components.HomeworkFormDialog
+import com.example.classschedule.ui.components.HomeworkPhotoViewerDialog
 import com.example.classschedule.ui.theme.ClassColors
 import com.example.classschedule.util.WeekDays
 import com.example.classschedule.viewmodel.ScheduleViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * تعریف تب‌های اصلی برنامه — در آینده می‌توان تب‌های جدیدی به این فهرست افزود
@@ -60,25 +70,29 @@ private data class MainTab(val title: String, val icon: ImageVector)
 
 private val MAIN_TABS = listOf(
     MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook),
-    MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment)
+    MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment),
+    MainTab(title = "عکس تکالیف", icon = Icons.Default.AddAPhoto)
 )
 
 /**
  * صفحه اصلی برنامه با تب‌های بالای صفحه:
  * ۱) برنامه هفتگی: نمای کامل هفته یا تک‌روز (بر اساس انتخاب کاربر)
  * ۲) یادآوری تکالیف: فهرست تکالیف با تاریخ مهلت شمسی و وضعیت انجام
+ * ۳) عکس تکالیف: گالری عکس‌های بارگذاری‌شده برای هر تکلیف
  * نوار بالا، دکمه شناور افزودن و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: ScheduleViewModel) {
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val allClasses by viewModel.allClasses.collectAsState()
     val allHomework by viewModel.allHomework.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val isWeekView = settings.viewMode == VIEW_MODE_WEEK
 
-    // تب اصلی فعال: ۰ = برنامه هفتگی، ۱ = یادآوری تکالیف
+    // تب اصلی فعال: ۰ = برنامه هفتگی، ۱ = یادآوری تکالیف، ۲ = عکس تکالیف
     var selectedMainTab by remember { mutableIntStateOf(0) }
 
     // صفحه‌گرد (Pager) روزهای هفته که با تب‌های روز هماهنگ است و روی «امروز» باز می‌شود
@@ -96,6 +110,38 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     var showHomeworkDialog by remember { mutableStateOf(false) }
     var editingHomework by remember { mutableStateOf<Homework?>(null) }
     var deletingHomework by remember { mutableStateOf<Homework?>(null) }
+
+    // وضعیت عکس‌های تکلیف:
+    // تکلیفی که کاربر برای آن «افزودن عکس» را لمس کرده و منتظر انتخاب گالری است
+    var photoPickTarget by remember { mutableStateOf<Homework?>(null) }
+    // نمایشگر تمام‌صفحه عکس‌ها: تکلیف + شماره عکس آغازین
+    var photoViewerTarget by remember { mutableStateOf<Pair<Homework, Int>?>(null) }
+    // دیالوگ انتخاب تکلیف برای بارگذاری عکس (از تب گالری با دکمه شناور)
+    var showPhotoTargetDialog by remember { mutableStateOf(false) }
+
+    // انتخابگر گالری برای افزودن عکس از روی کارت تکلیف یا گالری:
+    // عکس‌های انتخابی کوچک شده و در حافظه‌ی داخلی برنامه ذخیره می‌شوند
+    val pickCardPhotosLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        val target = photoPickTarget
+        photoPickTarget = null
+        if (target == null || uris.isEmpty()) return@rememberLauncherForActivityResult
+        scope.launch {
+            val savedNames = uris.mapNotNull { uri ->
+                withContext(Dispatchers.IO) {
+                    HomeworkImageStore.saveImageFromUri(context, uri)
+                }
+            }
+            viewModel.addPhotosToHomework(target, savedNames)
+        }
+    }
+
+    // باز کردن انتخابگر گالری برای یک تکلیف مشخص
+    val launchPhotoPickerFor = { homework: Homework ->
+        photoPickTarget = homework
+        pickCardPhotosLauncher.launch("image/*")
+    }
 
     // دیالوگ شخصی‌سازی رنگ برنامه (روی همه‌ی تب‌ها اثر می‌گذارد)
     var showColorDialog by remember { mutableStateOf(false) }
@@ -150,19 +196,33 @@ fun MainScreen(viewModel: ScheduleViewModel) {
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (selectedMainTab == 0) {
-                        // افزودن کلاس: در نمای تک‌روز روی روز انتخابی، در نمای هفته روی امروز
-                        formDay = if (isWeekView) {
-                            WeekDays.todayIndex()
-                        } else {
-                            dayPagerState.currentPage
+                    when (selectedMainTab) {
+                        0 -> {
+                            // افزودن کلاس: در نمای تک‌روز روی روز انتخابی، در نمای هفته روی امروز
+                            formDay = if (isWeekView) {
+                                WeekDays.todayIndex()
+                            } else {
+                                dayPagerState.currentPage
+                            }
+                            editingClass = null
+                            showFormDialog = true
                         }
-                        editingClass = null
-                        showFormDialog = true
-                    } else {
-                        // افزودن تکلیف جدید
-                        editingHomework = null
-                        showHomeworkDialog = true
+                        1 -> {
+                            // افزودن تکلیف جدید
+                            editingHomework = null
+                            showHomeworkDialog = true
+                        }
+                        else -> {
+                            // بارگذاری عکس از تب گالری:
+                            // اگر تکلیفی نیست، فرم افزودن تکلیف باز می‌شود؛
+                            // وگرنه کاربر تکلیف مورد نظر را انتخاب می‌کند
+                            if (allHomework.isEmpty()) {
+                                editingHomework = null
+                                showHomeworkDialog = true
+                            } else {
+                                showPhotoTargetDialog = true
+                            }
+                        }
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -170,10 +230,10 @@ fun MainScreen(viewModel: ScheduleViewModel) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = if (selectedMainTab == 0) {
-                        "افزودن کلاس جدید"
-                    } else {
-                        "افزودن تکلیف جدید"
+                    contentDescription = when (selectedMainTab) {
+                        0 -> "افزودن کلاس جدید"
+                        1 -> "افزودن تکلیف جدید"
+                        else -> "بارگذاری عکس تکلیف"
                     }
                 )
             }
@@ -208,8 +268,8 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                 },
                 modifier = Modifier.fillMaxSize()
             ) { page ->
-                if (page == 0) {
-                    ScheduleContent(
+                when (page) {
+                    0 -> ScheduleContent(
                         allClasses = allClasses,
                         isWeekView = isWeekView,
                         dayPagerState = dayPagerState,
@@ -221,12 +281,22 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                             showFormDialog = true
                         }
                     )
-                } else {
-                    HomeworkContent(
+                    1 -> HomeworkContent(
                         homeworkList = allHomework,
                         onEditHomework = { editingHomework = it },
                         onDeleteHomework = { deletingHomework = it },
-                        onToggleDone = { viewModel.toggleHomeworkDone(it) }
+                        onToggleDone = { viewModel.toggleHomeworkDone(it) },
+                        onAddPhotos = { launchPhotoPickerFor(it) },
+                        onOpenPhoto = { homework, index ->
+                            photoViewerTarget = homework to index
+                        }
+                    )
+                    else -> HomeworkPhotosContent(
+                        homeworkList = allHomework,
+                        onAddPhotos = { launchPhotoPickerFor(it) },
+                        onOpenPhoto = { homework, index ->
+                            photoViewerTarget = homework to index
+                        }
                     )
                 }
             }
@@ -310,19 +380,20 @@ fun MainScreen(viewModel: ScheduleViewModel) {
         )
     }
 
-    // دیالوگ تأیید حذف تکلیف
+    // دیالوگ تأیید حذف تکلیف — عکس‌های ذخیره‌شده‌ی آن هم از حافظه پاک می‌شوند
     deletingHomework?.let { target ->
         AlertDialog(
             onDismissRequest = { deletingHomework = null },
             title = { Text(text = "حذف تکلیف") },
             text = {
                 Text(
-                    text = "آیا از حذف تکلیف «${target.title}» مطمئن هستید؟ این عمل قابل بازگشت نیست."
+                    text = "آیا از حذف تکلیف «${target.title}» مطمئن هستید؟ عکس‌های آن هم حذف می‌شوند و این عمل قابل بازگشت نیست."
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
+                        HomeworkImageStore.deleteImages(context, target.imageList)
                         viewModel.deleteHomework(target)
                         deletingHomework = null
                     }
@@ -338,6 +409,39 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                     Text(text = "انصراف")
                 }
             }
+        )
+    }
+
+    // ---------- دیالوگ‌های عکس تکلیف ----------
+
+    // نمایشگر تمام‌صفحه‌ی عکس‌های تکلیف — با کشیدن انگشت میان عکس‌ها جابه‌جا می‌شوید
+    photoViewerTarget?.let { (target, startIndex) ->
+        // همیشه آخرین وضعیت تکلیف از دیتابیس خوانده می‌شود تا عکس‌های تازه هم دیده شوند
+        val fresh = allHomework.firstOrNull { it.id == target.id } ?: target
+        HomeworkPhotoViewerDialog(
+            photos = fresh.imageList,
+            initialIndex = startIndex,
+            onDismiss = { photoViewerTarget = null },
+            onDeletePhoto = { index ->
+                val name = fresh.imageList.getOrNull(index) ?: return@HomeworkPhotoViewerDialog
+                // فایل عکس از حافظه‌ی برنامه پاک و فهرست تکلیف به‌روزرسانی می‌شود
+                HomeworkImageStore.deleteImage(context, name)
+                viewModel.removePhotoFromHomework(fresh, name)
+            }
+        )
+    }
+
+    // دیالوگ انتخاب تکلیف برای بارگذاری عکس (دکمه شناور در تب گالری)
+    if (showPhotoTargetDialog) {
+        HomeworkPickerForPhotosDialog(
+            homeworkList = allHomework.sortedWith(
+                compareBy({ it.isDone }, { it.dueYear }, { it.dueMonth }, { it.dueDay })
+            ),
+            onSelect = { homework ->
+                showPhotoTargetDialog = false
+                launchPhotoPickerFor(homework)
+            },
+            onDismiss = { showPhotoTargetDialog = false }
         )
     }
 

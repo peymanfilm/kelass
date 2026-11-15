@@ -8,13 +8,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * دیتابیس اصلی Room — نسخه ۲: افزوده شدن جدول تکالیف (homework)
+ * دیتابیس اصلی Room — نسخه ۳: افزوده شدن ستون عکس‌های تکلیف (imageNames)
  * داده‌ها به صورت محلی و آفلاین ذخیره می‌شوند و با بستن برنامه پاک نمی‌شوند.
- * مهاجرت ۱ به ۲، کلاس‌های ثبت‌شده‌ی کاربر را بدون تغییر نگه می‌دارد.
+ * مهاجرت‌ها، داده‌های ثبت‌شده‌ی کاربر را بدون تغییر نگه می‌دارند.
  */
 @Database(
     entities = [ClassSchedule::class, Homework::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,6 +45,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** مهاجرت نسخه ۲ به ۳: افزودن ستون عکس‌های تکلیف (نام فایل‌ها جدا شده با ;) */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `homework` ADD COLUMN `imageNames` TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -56,7 +65,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "class_schedule_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }

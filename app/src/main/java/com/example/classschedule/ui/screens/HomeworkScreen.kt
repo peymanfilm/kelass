@@ -58,7 +58,9 @@ fun HomeworkContent(
     homeworkList: List<Homework>,
     onEditHomework: (Homework) -> Unit,
     onDeleteHomework: (Homework) -> Unit,
-    onToggleDone: (Homework) -> Unit
+    onToggleDone: (Homework) -> Unit,
+    onAddPhotos: (Homework) -> Unit,
+    onOpenPhoto: (Homework, Int) -> Unit
 ) {
     val today = remember { jalaliToday() }
     var filter by remember { mutableStateOf(HomeworkFilter.ALL) }
@@ -175,7 +177,9 @@ fun HomeworkContent(
                             today = today,
                             onToggleDone = { onToggleDone(item) },
                             onEditClick = { onEditHomework(item) },
-                            onDeleteClick = { onDeleteHomework(item) }
+                            onDeleteClick = { onDeleteHomework(item) },
+                            onAddPhotos = { onAddPhotos(item) },
+                            onOpenPhoto = { index -> onOpenPhoto(item, index) }
                         )
                     }
                 }

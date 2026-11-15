@@ -1,5 +1,6 @@
 package com.example.classschedule.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.example.classschedule.util.JalaliDate
@@ -8,6 +9,7 @@ import com.example.classschedule.util.JalaliDate
  * مدل داده‌ی تکلیف: یک یادآور تکلیف درسی
  * به صورت جدولی به نام homework در دیتابیس Room ذخیره می‌شود.
  * تاریخ مهلت به شکل شمسی (جلالی) ذخیره می‌شود تا نمایش و مقایسه‌ی تاریخ‌ها ساده باشد.
+ * عکس‌های تکلیف انجام‌شده در حافظه‌ی داخلی برنامه ذخیره و نام فایل‌ها اینجا نگه‌داری می‌شود.
  */
 @Entity(tableName = "homework")
 data class Homework(
@@ -22,9 +24,16 @@ data class Homework(
     val note: String = "",      // توضیحات تکلیف (اختیاری)
     val isDone: Boolean = false,// آیا انجام شده است؟
     val colorIndex: Int = 0,    // شماره رنگ کارت (برای تفکیک بصری تکالیف)
+    // نام فایل عکس‌های تکلیف جدا شده با «;» — خود فایل‌ها در پوشه‌ی homework_images حافظه‌ی برنامه هستند
+    @ColumnInfo(defaultValue = "")
+    val imageNames: String = "",
     val createdAt: Long = 0L    // زمان ثبت به میلی‌ثانیه
 ) {
     /** تاریخ شمسی مهلت به‌شکل JalaliDate برای نمایش و مقایسه */
     val dueJalali: JalaliDate
         get() = JalaliDate(year = dueYear, month = dueMonth, day = dueDay)
+
+    /** فهرست نام فایل عکس‌های این تکلیف به ترتیب افزودن */
+    val imageList: List<String>
+        get() = imageNames.split(";").map { it.trim() }.filter { it.isNotEmpty() }
 }

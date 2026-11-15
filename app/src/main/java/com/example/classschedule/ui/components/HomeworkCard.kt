@@ -65,6 +65,7 @@ private data class DueBadge(val label: String, val containerColor: Color?, val t
  * - دایره وضعیت: لمس برای انجام‌شده/بازگشت به حالت باز
  * - برچسب رنگی وضعیت مهلت: گذشته از مهلت / امروز / فردا / روزهای مانده
  * - آیکون مداد: ویرایش / آیکون سطل زباله: حذف (با دیالوگ تأیید)
+ * - نوار عکس‌های تکلیف: بندانگشتی عکس‌های بارگذاری‌شده + دکمه افزودن عکس از گالری
  */
 @Composable
 fun HomeworkCard(
@@ -72,7 +73,9 @@ fun HomeworkCard(
     today: JalaliDate,
     onToggleDone: () -> Unit,
     onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onAddPhotos: () -> Unit,
+    onOpenPhoto: (Int) -> Unit
 ) {
     val scheme: ClassColorScheme = ClassColors.forIndex(homework.colorIndex)
     val diffDays = daysBetween(from = today, to = homework.dueJalali)
@@ -224,6 +227,15 @@ fun HomeworkCard(
                         contentColor = scheme.onContainer
                     )
                 }
+
+                // نوار عکس‌های تکلیف: بندانگشتی عکس‌های بارگذاری‌شده + دکمه افزودن از گالری
+                Spacer(modifier = Modifier.height(10.dp))
+                HomeworkPhotoStrip(
+                    photos = homework.imageList,
+                    accent = scheme.accent,
+                    onAddClick = onAddPhotos,
+                    onPhotoClick = onOpenPhoto
+                )
             }
 
             // دکمه‌های ویرایش و حذف

@@ -105,6 +105,23 @@ class ScheduleViewModel(
             homeworkRepository.update(homework.copy(isDone = !homework.isDone))
         }
     }
+
+    // افزودن عکس‌های جدید به یک تکلیف (نام فایل‌های تازه ذخیره‌شده در حافظه‌ی برنامه)
+    fun addPhotosToHomework(homework: Homework, newNames: List<String>) {
+        if (newNames.isEmpty()) return
+        viewModelScope.launch {
+            val updatedNames = (homework.imageList + newNames).joinToString(";")
+            homeworkRepository.update(homework.copy(imageNames = updatedNames))
+        }
+    }
+
+    // حذف یک عکس از تکلیف (فایل آن باید جداگانه از حافظه پاک شود)
+    fun removePhotoFromHomework(homework: Homework, name: String) {
+        viewModelScope.launch {
+            val updatedNames = (homework.imageList - name).joinToString(";")
+            homeworkRepository.update(homework.copy(imageNames = updatedNames))
+        }
+    }
 }
 
 /**
