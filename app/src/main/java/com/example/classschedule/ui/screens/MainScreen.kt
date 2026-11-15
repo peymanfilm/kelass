@@ -75,7 +75,7 @@ private data class MainTab(val title: String, val icon: ImageVector)
 private val MAIN_TABS = listOf(
     MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook),
     MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment),
-    MainTab(title = "عکس تکالیف", icon = Icons.Default.AddAPhoto),
+    MainTab(title = "انجام تکالیف", icon = Icons.Default.AddAPhoto),
     MainTab(title = "کارنامه", icon = Icons.Default.School)
 )
 
@@ -83,7 +83,7 @@ private val MAIN_TABS = listOf(
  * صفحه اصلی برنامه «کلاس چی» با تب‌های بالای صفحه:
  * ۱) برنامه هفتگی: نمای کامل هفته یا تک‌روز (بر اساس انتخاب کاربر)
  * ۲) یادآوری تکالیف: فهرست تکالیف با تاریخ مهلت شمسی و وضعیت انجام
- * ۳) عکس تکالیف: گالری عکس‌های بارگذاری‌شده برای هر تکلیف
+ * ۳) انجام تکالیف: گالری عکس‌های بارگذاری‌شده برای هر تکلیف
  * ۴) نمرات: کارنامه کامل — نمره مستمر و امتحان هر درس، منفی/مثبت دستی،
  *    معدل هر درس، معدل کل و کلید «عکس اجباری»
  * نوار بالا، دکمه شناور افزودن، امضای برنامه و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
@@ -100,7 +100,7 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     val settings by viewModel.settings.collectAsState()
     val isWeekView = settings.viewMode == VIEW_MODE_WEEK
 
-    // تب اصلی فعال: ۰ = برنامه هفتگی، ۱ = یادآوری تکالیف، ۲ = عکس تکالیف، ۳ = نمرات
+    // تب اصلی فعال: ۰ = برنامه هفتگی، ۱ = یادآوری تکالیف، ۲ = انجام تکالیف، ۳ = کارنامه
     var selectedMainTab by remember { mutableIntStateOf(0) }
 
     // صفحه‌گرد (Pager) روزهای هفته که با تب‌های روز هماهنگ است و روی «امروز» باز می‌شود

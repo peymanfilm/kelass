@@ -338,7 +338,7 @@ fun HomeworkPhotoViewerDialog(
 }
 
 /**
- * حالت خالی تب «عکس تکالیف» — وقتی هنوز تکلیفی ثبت نشده باشد
+ * حالت خالی تب «انجام تکالیف» — وقتی هنوز تکلیفی ثبت نشده باشد
  */
 @Composable
 fun HomeworkPhotosEmptyState(message: String) {
