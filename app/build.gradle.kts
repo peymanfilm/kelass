@@ -20,13 +20,35 @@ android {
         versionName = "1.4"
     }
 
+    // امضای نسخه نهایی با کلید ذخیره‌شده در پوشه keystore
+    // این کلید داخل مخزن است تا همه نسخه‌های آینده با همان امضا ساخته شوند
+    // و به‌روزرسانی برنامه روی گوشی بدون حذف نسخه قبلی انجام شود
+    signingConfigs {
+        create("release") {
+            val keystoreFile = rootProject.file("keystore/app-release.keystore")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = "kelass1404"
+                keyAlias = "kelass"
+                keyPassword = "kelass1404"
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // فعال‌سازی فشرده‌سازی کد (R8): کلاس‌ها و آیکون‌های استفاده‌نشده حذف می‌شوند
+            // و حجم فایل APK از حدود ۱۷ مگابایت به حدود ۵ مگابایت کاهش می‌یابد
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            applicationIdSuffix = ".debug"
         }
     }
 

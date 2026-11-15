@@ -40,16 +40,16 @@ jobs:
             echo "dir=$(dirname "$found")" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: "ساخت فایل APK"
+      - name: "ساخت فایل APK نسخه نهایی (فشرده)"
         working-directory: ${{ steps.locate.outputs.dir }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: "آماده‌سازی فایل خروجی"
         id: apk
         run: |
-          apk_path="$(find . -type f -name 'app-debug.apk' | head -n 1)"
+          apk_path="$(find . -type f -name 'app-release.apk' | head -n 1)"
           if [ -z "$apk_path" ]; then
             apk_path="$(find . -type f -name '*.apk' | head -n 1)"
           fi
