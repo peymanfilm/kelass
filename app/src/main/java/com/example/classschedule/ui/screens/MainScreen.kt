@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,8 +31,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -72,7 +73,8 @@ private data class MainTab(val title: String, val icon: ImageVector)
 private val MAIN_TABS = listOf(
     MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook),
     MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment),
-    MainTab(title = "عکس تکالیف", icon = Icons.Default.AddAPhoto)
+    MainTab(title = "عکس تکالیف", icon = Icons.Default.AddAPhoto),
+    MainTab(title = "نمرات", icon = Icons.Default.School)
 )
 
 /**
@@ -80,6 +82,7 @@ private val MAIN_TABS = listOf(
  * ۱) برنامه هفتگی: نمای کامل هفته یا تک‌روز (بر اساس انتخاب کاربر)
  * ۲) یادآوری تکالیف: فهرست تکالیف با تاریخ مهلت شمسی و وضعیت انجام
  * ۳) عکس تکالیف: گالری عکس‌های بارگذاری‌شده برای هر تکلیف
+ * ۴) نمرات: شمارش منفی‌ها — تکلیفی که مهلتش گذشته و عکسی ندارد منفی می‌گیرد
  * نوار بالا، دکمه شناور افزودن و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,7 +96,7 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     val settings by viewModel.settings.collectAsState()
     val isWeekView = settings.viewMode == VIEW_MODE_WEEK
 
-    // تب اصلی فعال: ۰ = برنامه هفتگی، ۱ = یادآوری تکالیف، ۲ = عکس تکالیف
+    // تب اصلی فعال: ۰ = برنامه هفتگی، ۱ = یادآوری تکالیف، ۲ = عکس تکالیف، ۳ = نمرات
     var selectedMainTab by remember { mutableIntStateOf(0) }
 
     // صفحه‌گرد (Pager) روزهای هفته که با تب‌های روز هماهنگ است و روی «امروز» باز می‌شود
@@ -213,7 +216,7 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                             editingHomework = null
                             showHomeworkDialog = true
                         }
-                        else -> {
+                        2 -> {
                             // بارگذاری عکس از تب گالری:
                             // اگر تکلیفی نیست، فرم افزودن تکلیف باز می‌شود؛
                             // وگرنه کاربر تکلیف مورد نظر را انتخاب می‌کند
@@ -223,6 +226,11 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                             } else {
                                 showPhotoTargetDialog = true
                             }
+                        }
+                        else -> {
+                            // تب نمرات: افزودن تکلیف جدید
+                            editingHomework = null
+                            showHomeworkDialog = true
                         }
                     }
                 },
@@ -234,7 +242,8 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                     contentDescription = when (selectedMainTab) {
                         0 -> "افزودن کلاس جدید"
                         1 -> "افزودن تکلیف جدید"
-                        else -> "بارگذاری عکس تکلیف"
+                        2 -> "بارگذاری عکس تکلیف"
+                        else -> "افزودن تکلیف جدید"
                     }
                 )
             }
@@ -245,9 +254,10 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // تب‌های اصلی برنامه
-            TabRow(
+            // تب‌های اصلی برنامه — اسکرول‌پذیر تا در صفحه‌های باریک هم جا شوند
+            ScrollableTabRow(
                 selectedTabIndex = selectedMainTab,
+                edgePadding = 12.dp,
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
                 MAIN_TABS.forEachIndexed { index, tab ->
@@ -300,7 +310,14 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                             ).show()
                         }
                     )
-                    else -> HomeworkPhotosContent(
+                    2 -> HomeworkPhotosContent(
+                        homeworkList = allHomework,
+                        onAddPhotos = { launchPhotoPickerFor(it) },
+                        onOpenPhoto = { homework, index ->
+                            photoViewerTarget = homework to index
+                        }
+                    )
+                    else -> GradesContent(
                         homeworkList = allHomework,
                         onAddPhotos = { launchPhotoPickerFor(it) },
                         onOpenPhoto = { homework, index ->
