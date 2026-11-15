@@ -25,6 +25,26 @@ interface SubjectGradeDao {
     @Query("UPDATE subject_grade SET continuousGrade = :grade WHERE name = :name")
     suspend fun setContinuousGrade(name: String, grade: Float?)
 
+    // ثبت یا پاک کردن نمره امتحان یک درس (grade = null یعنی پاک کردن نمره)
+    @Query("UPDATE subject_grade SET examGrade = :grade WHERE name = :name")
+    suspend fun setExamGrade(name: String, grade: Float?)
+
+    // افزودن/کم کردن منفی دستی معلم — هرگز از صفر پایین‌تر نمی‌رود
+    @Query(
+        "UPDATE subject_grade SET manualNegatives = " +
+            "CASE WHEN manualNegatives + :delta < 0 THEN 0 ELSE manualNegatives + :delta END " +
+            "WHERE name = :name"
+    )
+    suspend fun adjustManualNegatives(name: String, delta: Int)
+
+    // افزودن/کم کردن مثبت دستی معلم — هرگز از صفر پایین‌تر نمی‌رود
+    @Query(
+        "UPDATE subject_grade SET manualPositives = " +
+            "CASE WHEN manualPositives + :delta < 0 THEN 0 ELSE manualPositives + :delta END " +
+            "WHERE name = :name"
+    )
+    suspend fun adjustManualPositives(name: String, delta: Int)
+
     // تغییر قانون عکس اجباری برای یک درس
     @Query("UPDATE subject_grade SET photoRequired = :required WHERE name = :name")
     suspend fun setPhotoRequired(name: String, required: Boolean)

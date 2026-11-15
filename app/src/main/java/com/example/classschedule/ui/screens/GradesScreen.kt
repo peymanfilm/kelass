@@ -89,26 +89,64 @@ private fun subjectKey(homework: Homework): String =
     homework.subject.trim().ifBlank { SubjectGrade.NO_SUBJECT }
 
 /**
- * محاسبه‌ی نمره نهایی: نمره مستمر منهای کسر هر منفی (۰٫۲۵) — بین ۰ تا ۲۰ محدود می‌شود
+ * نتیجه‌ی محاسبات نمره‌ی یک درس برای نمایش در کارنامه
  */
-private fun finalGradeOf(continuousGrade: Float, negativeCount: Int): Float {
-    val value = continuousGrade - SubjectGrade.PENALTY_PER_NEGATIVE * negativeCount
-    return (value.coerceIn(0f, SubjectGrade.MAX_GRADE) * 100f).roundToInt() / 100f
+private data class SubjectCalc(
+    val finalContinuous: Float?,   // نمره مستمر نهایی پس از منفی‌ها و مثبت‌ها
+    val extraPositives: Int,       // مثبت‌هایی که چون نمره به ۲۰ رسیده بود اعمال نشدند
+    val subjectAverage: Float?     // معدل درس: میانگین مستمر نهایی و نمره امتحان
+)
+
+/**
+ * محاسبه‌ی نمره‌های یک درس طبق قانون کارنامه:
+ * ۱) هر منفی (خودکار از تکالیفِ بی‌عکس + دستی معلم) ۰٫۲۵ از نمره مستمر کم می‌کند (کف ۰).
+ * ۲) هر مثبت اگر نمره کمتر از ۲۰ باشد ۰٫۲۵ اضافه می‌کند؛
+ *    مثبت‌هایی که نمره از قبل ۲۰ شده، کنار نمره شمرده می‌شوند.
+ * ۳) معدل درس = میانگین نمره مستمر نهایی و نمره امتحان (اگر امتحان وارد شده باشد).
+ */
+private fun calcSubject(row: SubjectGrade, autoNegatives: Int): SubjectCalc {
+    val continuous = row.continuousGrade ?: return SubjectCalc(null, 0, null)
+    var value = continuous - SubjectGrade.PENALTY_PER_NEGATIVE * (autoNegatives + row.manualNegatives)
+    value = value.coerceAtLeast(0f)
+    var extraPositives = 0
+    repeat(row.manualPositives) {
+        if (value < SubjectGrade.MAX_GRADE) {
+            value = (value + SubjectGrade.PENALTY_PER_NEGATIVE)
+                .coerceAtMost(SubjectGrade.MAX_GRADE)
+        } else {
+            extraPositives++
+        }
+    }
+    value = (value * 100f).roundToInt() / 100f
+    val exam = row.examGrade
+    val average = when {
+        exam != null -> ((value + exam) / 2f * 100f).roundToInt() / 100f
+        else -> value
+    }
+    return SubjectCalc(
+        finalContinuous = value,
+        extraPositives = extraPositives,
+        subjectAverage = average
+    )
 }
 
 /**
  * محتوای تب «نمرات» — کارنامه‌ی کامل کلاسی، بدون Scaffold و نوار بالا (که در MainScreen مشترک است)
  *
  * قانون نمرات:
- * - برای هر درس، معلم یک «نمره مستمر (کلاسی)» از ۰ تا ۲۰ وارد می‌کند.
+ * - برای هر درس، معلم «نمره مستمر (کلاسی)» و «نمره امتحان» از ۰ تا ۲۰ وارد می‌کند.
  * - تکلیفی که مهلتش گذشته و هیچ عکسی برایش بارگذاری نشده، برای همان درس یک «منفی» حساب می‌شود
  *   — اما فقط وقتی معلم برای آن درس «عکس اجباری» را روشن کرده باشد.
- * - هر منفی ۰٫۲۵ از نمره مستمر همان درس کم می‌کند و نمره نهایی بین ۰ تا ۲۰ نگه داشته می‌شود.
- * - معدل کل = میانگین نمره نهایی درس‌هایی که نمره دارند.
+ * - معلم می‌تواند برای هر درس به صورت دستی «منفی» یا «مثبت» ثبت کند.
+ * - هر منفی ۰٫۲۵ از نمره مستمر همان درس کم می‌کند و هر مثبت اگر نمره کمتر از ۲۰ باشد
+ *   ۰٫۲۵ به آن اضافه می‌کند؛ اگر نمره ۲۰ شده باشد، مثبت‌های اضافه کنار نمره نوشته می‌شوند.
+ * - معدل هر درس = میانگین نمره مستمر نهایی و نمره امتحان.
+ * - معدل کل = میانگین معدل درس‌هایی که نمره دارند.
  *
  * بخش‌های صفحه:
- * ۱) کارت خلاصه‌ی کارنامه: معدل کل، جمع منفی‌ها، تعداد تحویل‌شده‌ها + توضیح قانون
- * ۲) فهرست درس‌ها (کارنامه): نمره مستمر قابل ویرایش، شمار منفی، نمره نهایی و کلید «عکس اجباری»
+ * ۱) کارت خلاصه‌ی کارنامه: معدل کل، جمع منفی‌ها، جمع مثبت‌ها، تعداد تحویل‌شده‌ها + توضیح قانون
+ * ۲) فهرست درس‌ها (کارنامه): نمره مستمر و نمره امتحان قابل ویرایش، منفی/مثبت دستی،
+ *    نمره نهایی مستمر، معدل درس و کلید «عکس اجباری»
  * ۳) جزییات منفی‌ها: تکالیفِ مهلت‌گذشته‌ی بدون عکس با دکمه‌ی بارگذاری عکس برای جبران
  * ۴) فهرست تحویل‌شده‌ها: تکالیف دارای عکس با بندانگشتی و نمایشگر تمام‌صفحه
  */
@@ -117,6 +155,9 @@ fun GradesContent(
     subjectGrades: List<SubjectGrade>,
     homeworkList: List<Homework>,
     onSetContinuousGrade: (String, Float?) -> Unit,
+    onSetExamGrade: (String, Float?) -> Unit,
+    onAdjustManualNegative: (String, Int) -> Unit,
+    onAdjustManualPositive: (String, Int) -> Unit,
     onSetPhotoRequired: (String, Boolean) -> Unit,
     onAddSubject: (String) -> Unit,
     onDeleteSubject: (String) -> Unit,
@@ -140,15 +181,15 @@ fun GradesContent(
             .sortedBy { daysBetween(today, it.dueJalali) }
     }
 
-    // منفی‌های مؤثر: فقط تکالیفِ درس‌هایی که «عکس اجباری» برایشان روشن است
+    // منفی‌های خودکار مؤثر: فقط تکالیفِ درس‌هایی که «عکس اجباری» برایشان روشن است
     val effectiveNegatives = remember(overdueWithoutPhoto, gradeByName) {
         overdueWithoutPhoto.filter { homework ->
             gradeByName[subjectKey(homework)]?.photoRequired ?: true
         }
     }
 
-    // شمارش منفی هر درس برای کسر از نمره مستمر
-    val negativesBySubject = remember(effectiveNegatives) {
+    // شمارش منفی خودکار هر درس (از تکالیفِ بی‌عکس) برای کسر از نمره مستمر
+    val autoNegativesBySubject = remember(effectiveNegatives) {
         effectiveNegatives.groupBy { subjectKey(it) }.mapValues { it.value.size }
     }
 
@@ -159,14 +200,23 @@ fun GradesContent(
             .sortedByDescending { daysBetween(today, it.dueJalali) }
     }
 
-    // معدل کل: میانگین نمره نهایی درس‌هایی که نمره مستمر برایشان وارد شده است
-    val average = remember(gradeByName, negativesBySubject) {
-        val finals = gradeByName.values.mapNotNull { row ->
-            row.continuousGrade?.let { finalGradeOf(it, negativesBySubject[row.name] ?: 0) }
+    // محاسبات هر درس: نمره مستمر نهایی، مثبت‌های اضافه و معدل درس
+    val calcs = remember(gradeByName, autoNegativesBySubject) {
+        gradeByName.mapValues { (name, row) ->
+            calcSubject(row, autoNegativesBySubject[name] ?: 0)
         }
-        if (finals.isEmpty()) null else (finals.sum() / finals.size * 100f).roundToInt() / 100f
     }
-    val totalNegatives = negativesBySubject.values.sum()
+
+    // معدل کل: میانگین معدل درس‌هایی که نمره‌شان قابل محاسبه است
+    val average = remember(calcs) {
+        val averages = calcs.values.mapNotNull { it.subjectAverage }
+        if (averages.isEmpty()) null else (averages.sum() / averages.size * 100f).roundToInt() / 100f
+    }
+
+    // جمع منفی‌ها (خودکار + دستی معلم) و جمع مثبت‌های دستی معلم
+    val totalNegatives = autoNegativesBySubject.values.sum() +
+        subjectGrades.sumOf { it.manualNegatives }
+    val totalPositives = subjectGrades.sumOf { it.manualPositives }
 
     // وضعیت دیالوگ‌های کارنامه
     var gradeEditTarget by remember { mutableStateOf<SubjectGrade?>(null) }
@@ -194,6 +244,7 @@ fun GradesContent(
             ReportHeaderCard(
                 average = average,
                 totalNegatives = totalNegatives,
+                totalPositives = totalPositives,
                 deliveredCount = delivered.size
             )
         }
@@ -252,8 +303,10 @@ fun GradesContent(
         items(subjectGrades, key = { "subject-${it.name}" }) { row ->
             SubjectReportCard(
                 row = row,
-                negativeCount = negativesBySubject[row.name] ?: 0,
-                onEditGrade = { gradeEditTarget = row },
+                autoNegatives = autoNegativesBySubject[row.name] ?: 0,
+                onEditGrades = { gradeEditTarget = row },
+                onAdjustNegative = { delta -> onAdjustManualNegative(row.name, delta) },
+                onAdjustPositive = { delta -> onAdjustManualPositive(row.name, delta) },
                 onTogglePhotoRequired = { onSetPhotoRequired(row.name, !row.photoRequired) },
                 onDelete = { deleteSubjectTarget = row }
             )
@@ -298,13 +351,14 @@ fun GradesContent(
 
     // ---------- دیالوگ‌های کارنامه ----------
 
-    // دیالوگ وارد کردن / ویرایش نمره مستمر
+    // دیالوگ وارد کردن / ویرایش نمره مستمر و نمره امتحان
     gradeEditTarget?.let { target ->
         GradeEditDialog(
             target = target,
             onDismiss = { gradeEditTarget = null },
-            onSave = { grade ->
-                onSetContinuousGrade(target.name, grade)
+            onSave = { continuous, exam ->
+                onSetContinuousGrade(target.name, continuous)
+                onSetExamGrade(target.name, exam)
                 gradeEditTarget = null
             }
         )
@@ -354,12 +408,13 @@ fun GradesContent(
 }
 
 /**
- * کارت خلاصه‌ی کارنامه: معدل کل + جمع منفی‌ها + تعداد تحویل‌شده‌ها + توضیح قانون نمره
+ * کارت خلاصه‌ی کارنامه: معدل کل + جمع منفی‌ها + جمع مثبت‌ها + تعداد تحویل‌شده‌ها + توضیح قانون نمره
  */
 @Composable
 private fun ReportHeaderCard(
     average: Float?,
     totalNegatives: Int,
+    totalPositives: Int,
     deliveredCount: Int
 ) {
     Surface(
@@ -387,8 +442,14 @@ private fun ReportHeaderCard(
                 )
                 ReportStat(
                     value = totalNegatives.toString().toPersianDigits(),
-                    label = "جمع منفی‌ها",
+                    label = "منفی‌ها",
                     valueColor = if (totalNegatives > 0) NegativeAccent else DeliveredAccent,
+                    modifier = Modifier.weight(1f)
+                )
+                ReportStat(
+                    value = totalPositives.toString().toPersianDigits(),
+                    label = "مثبت‌ها",
+                    valueColor = if (totalPositives > 0) DeliveredAccent else MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.weight(1f)
                 )
                 ReportStat(
@@ -400,7 +461,8 @@ private fun ReportHeaderCard(
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "هر منفی، ۰٫۲۵ از نمره مستمر همان درس کم می‌کند؛ عکس تکلیف انجام‌شده را پیش از گذشتن مهلت بارگذاری کنید.",
+                text = "هر منفی ۰٫۲۵ از نمره مستمر همان درس کم می‌کند و هر مثبت ۰٫۲۵ اضافه می‌کند " +
+                    "(تا سقف ۲۰)؛ معدل هر درس از میانگین نمره مستمر و نمره امتحان ساخته می‌شود.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
             )
@@ -439,19 +501,22 @@ private fun ReportStat(
 
 /**
  * کارت کارنامه یک درس:
- * نام درس + دکمه حذف | نمره مستمر (قابل ویرایش) | شمار منفی + کسر | نمره نهایی | کلید «عکس اجباری»
+ * نام درس + دکمه حذف | نمره مستمر و نمره امتحان (قابل ویرایش) |
+ * منفی و مثبت با دکمه‌های + و − | نمره نهایی مستمر (با مثبت‌های اضافه) | معدل درس | کلید «عکس اجباری»
  */
 @Composable
 private fun SubjectReportCard(
     row: SubjectGrade,
-    negativeCount: Int,
-    onEditGrade: () -> Unit,
+    autoNegatives: Int,
+    onEditGrades: () -> Unit,
+    onAdjustNegative: (Int) -> Unit,
+    onAdjustPositive: (Int) -> Unit,
     onTogglePhotoRequired: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val continuous = row.continuousGrade
-    val final = continuous?.let { finalGradeOf(it, negativeCount) }
-    val deduction = SubjectGrade.PENALTY_PER_NEGATIVE * negativeCount
+    val calc = calcSubject(row, autoNegatives)
+    val totalNegatives = autoNegatives + row.manualNegatives
+    val hasAdjustment = totalNegatives > 0 || row.manualPositives > 0
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -491,7 +556,7 @@ private fun SubjectReportCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // سه ستون: نمره مستمر | منفی | نمره نهایی
+            // دو ستون: نمره مستمر | نمره امتحان — هر دو با دکمه ویرایش
             Row(verticalAlignment = Alignment.Top) {
                 // نمره مستمر + دکمه ویرایش
                 Column(modifier = Modifier.weight(1f)) {
@@ -503,10 +568,10 @@ private fun SubjectReportCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = continuous?.let { formatGradePersian(it) } ?: "وارد نشده",
+                            text = row.continuousGrade?.let { formatGradePersian(it) } ?: "وارد نشده",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (continuous == null) {
+                            color = if (row.continuousGrade == null) {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             } else {
                                 MaterialTheme.colorScheme.onSurface
@@ -514,12 +579,12 @@ private fun SubjectReportCard(
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         IconButton(
-                            onClick = onEditGrade,
+                            onClick = onEditGrades,
                             modifier = Modifier.size(30.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "ویرایش نمره مستمر «${row.name}»",
+                                contentDescription = "ویرایش نمره‌های «${row.name}»",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -527,46 +592,140 @@ private fun SubjectReportCard(
                     }
                 }
 
-                // شمار منفی + مقدار کسر
+                // نمره امتحان + دکمه ویرایش
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "منفی",
+                        text = "نمره امتحان",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = negativeCount.toString().toPersianDigits(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (negativeCount > 0) NegativeAccent else MaterialTheme.colorScheme.onSurface
-                    )
-                    if (negativeCount > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "کسر: ${formatGradePersian(deduction)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NegativeAccent
+                            text = row.examGrade?.let { formatGradePersian(it) } ?: "وارد نشده",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (row.examGrade == null) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
                         )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        IconButton(
+                            onClick = onEditGrades,
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "ویرایش نمره امتحان «${row.name}»",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
+            }
 
-                // نمره نهایی
-                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // منفی و مثبت: شمارنده با دکمه‌های کم و زیاد — معلم دستی ثبت می‌کند
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    CounterStepper(
+                        label = "منفی",
+                        count = totalNegatives,
+                        countColor = if (totalNegatives > 0) {
+                            NegativeAccent
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        subLabel = if (autoNegatives > 0) {
+                            "خودکار از تکالیف: ${autoNegatives.toString().toPersianDigits()}"
+                        } else {
+                            "هر منفی: −۰٫۲۵"
+                        },
+                        onDecrement = { onAdjustNegative(-1) },
+                        onIncrement = { onAdjustNegative(1) }
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    CounterStepper(
+                        label = "مثبت",
+                        count = row.manualPositives,
+                        countColor = if (row.manualPositives > 0) {
+                            DeliveredAccent
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        subLabel = "هر مثبت: +۰٫۲۵",
+                        onDecrement = { onAdjustPositive(-1) },
+                        onIncrement = { onAdjustPositive(1) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // نمره نهایی مستمر (با نشان مثبت‌های اضافه) + معدل درس
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "نمره نهایی",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = calc.finalContinuous?.let { formatGradePersian(it) } ?: "—",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (calc.finalContinuous == null) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                        // اگر نمره ۲۰ شده و مثبت اضافه مانده، کنار نمره نوشته می‌شود
+                        if (calc.finalContinuous != null && calc.extraPositives > 0) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = Color(0xFFC8E6C9)
+                            ) {
+                                Text(
+                                    text = "+${calc.extraPositives.toString().toPersianDigits()} مثبت",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = DeliveredBadgeText,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.End
+                ) {
                     Text(
-                        text = final?.let { formatGradePersian(it) } ?: "—",
+                        text = "معدل درس",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = calc.subjectAverage?.let { formatGradePersian(it) } ?: "—",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = if (final == null) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -607,48 +766,147 @@ private fun SubjectReportCard(
 }
 
 /**
- * دیالوگ وارد کردن / ویرایش نمره مستمر — ارقام فارسی و لاتین پذیرفته می‌شود
- * ذخیره با فیلد خالی یعنی پاک کردن نمره‌ی ثبت‌شده.
+ * شمارنده‌ی منفی/مثبت با دکمه‌های کم و زیاد — برای ثبت دستی معلم
+ */
+@Composable
+private fun CounterStepper(
+    label: String,
+    count: Int,
+    countColor: Color,
+    subLabel: String,
+    onDecrement: () -> Unit,
+    onIncrement: () -> Unit
+) {
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // دکمه کم کردن
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                    .clickable(
+                        onClickLabel = "کم کردن $label",
+                        onClick = onDecrement
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Remove,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = count.toString().toPersianDigits(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = countColor
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            // دکمه زیاد کردن
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                    .clickable(
+                        onClickLabel = "افزودن $label",
+                        onClick = onIncrement
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = subLabel,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+        )
+    }
+}
+
+/**
+ * دیالوگ وارد کردن / ویرایش نمره مستمر و نمره امتحان — ارقام فارسی و لاتین پذیرفته می‌شود
+ * ذخیره با فیلد خالی یعنی پاک کردن آن نمره.
  */
 @Composable
 private fun GradeEditDialog(
     target: SubjectGrade,
     onDismiss: () -> Unit,
-    onSave: (Float?) -> Unit
+    onSave: (Float?, Float?) -> Unit
 ) {
-    var text by remember(target) {
+    var continuousText by remember(target) {
         mutableStateOf(target.continuousGrade?.let { formatGradeLatin(it) } ?: "")
     }
-    val parsed = parseGradeInput(text)
-    val isError = text.isNotBlank() && parsed == null
+    var examText by remember(target) {
+        mutableStateOf(target.examGrade?.let { formatGradeLatin(it) } ?: "")
+    }
+    val continuousParsed = parseGradeInput(continuousText)
+    val examParsed = parseGradeInput(examText)
+    val continuousError = continuousText.isNotBlank() && continuousParsed == null
+    val examError = examText.isNotBlank() && examParsed == null
+    val isError = continuousError || examError
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "نمره مستمر «${target.name}»") },
+        title = { Text(text = "نمره‌های «${target.name}»") },
         text = {
             Column {
                 OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text(text = "نمره از ۰ تا ۲۰") },
+                    value = continuousText,
+                    onValueChange = { continuousText = it },
+                    label = { Text(text = "نمره مستمر از ۰ تا ۲۰") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    isError = isError,
+                    isError = continuousError,
                     supportingText = {
-                        if (isError) {
+                        if (continuousError) {
                             Text(text = "عددی بین ۰ تا ۲۰ وارد کنید")
                         }
                     }
                 )
-                TextButton(onClick = { text = "" }) {
-                    Text(text = "پاک کردن نمره")
+                TextButton(onClick = { continuousText = "" }) {
+                    Text(text = "پاک کردن نمره مستمر")
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = examText,
+                    onValueChange = { examText = it },
+                    label = { Text(text = "نمره امتحان از ۰ تا ۲۰") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = examError,
+                    supportingText = {
+                        if (examError) {
+                            Text(text = "عددی بین ۰ تا ۲۰ وارد کنید")
+                        }
+                    }
+                )
+                TextButton(onClick = { examText = "" }) {
+                    Text(text = "پاک کردن نمره امتحان")
                 }
             }
         },
         confirmButton = {
             TextButton(
                 enabled = !isError,
-                onClick = { onSave(parsed) }
+                onClick = { onSave(continuousParsed, examParsed) }
             ) {
                 Text(text = "ذخیره")
             }
@@ -1045,8 +1303,8 @@ private fun GradesEmptyState(onAddSubject: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "درس‌های برنامه هفتگی و تکالیف خودکار به کارنامه اضافه می‌شوند؛ " +
-                "برای هر درس نمره مستمر را وارد کنید. هر تکلیفی که مهلتش بگذرد و عکسی نداشته باشد، " +
-                "۰٫۲۵ از نمره همان درس کم می‌کند.",
+                "برای هر درس نمره مستمر و نمره امتحان را وارد کنید. " +
+                "هر تکلیفِ مهلت‌گذشته‌ی بدون عکس ۰٫۲۵ کم می‌کند و هر مثبت ۰٫۲۵ اضافه می‌کند.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

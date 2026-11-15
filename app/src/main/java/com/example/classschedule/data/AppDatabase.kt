@@ -56,13 +56,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        /** مهاجرت نسخه ۳ به ۴: ساخت جدول کارنامه (نمره مستمر و قانون عکس هر درس) */
+        /** مهاجرت نسخه ۳ به ۴: ساخت جدول کارنامه (نمره مستمر، نمره امتحان، منفی/مثبت دستی و قانون عکس هر درس) */
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `subject_grade` (" +
                         "`name` TEXT NOT NULL, " +
                         "`continuousGrade` REAL, " +
+                        "`examGrade` REAL, " +
+                        "`manualNegatives` INTEGER NOT NULL DEFAULT 0, " +
+                        "`manualPositives` INTEGER NOT NULL DEFAULT 0, " +
                         "`photoRequired` INTEGER NOT NULL DEFAULT 1, " +
                         "PRIMARY KEY(`name`)"
                 )

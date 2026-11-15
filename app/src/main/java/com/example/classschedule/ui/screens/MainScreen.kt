@@ -11,6 +11,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.rememberPagerState
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.classschedule.data.ClassSchedule
 import com.example.classschedule.data.Homework
@@ -74,17 +76,17 @@ private val MAIN_TABS = listOf(
     MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook),
     MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment),
     MainTab(title = "عکس تکالیف", icon = Icons.Default.AddAPhoto),
-    MainTab(title = "نمرات", icon = Icons.Default.School)
+    MainTab(title = "کارنامه", icon = Icons.Default.School)
 )
 
 /**
- * صفحه اصلی برنامه با تب‌های بالای صفحه:
+ * صفحه اصلی برنامه «کلاس چی» با تب‌های بالای صفحه:
  * ۱) برنامه هفتگی: نمای کامل هفته یا تک‌روز (بر اساس انتخاب کاربر)
  * ۲) یادآوری تکالیف: فهرست تکالیف با تاریخ مهلت شمسی و وضعیت انجام
  * ۳) عکس تکالیف: گالری عکس‌های بارگذاری‌شده برای هر تکلیف
- * ۴) نمرات: کارنامه کلاسی — نمره مستمر هر درس، منفی‌ها (هر منفی ۰٫۲۵ کسر می‌کند)،
- *    نمره نهایی و کلید «عکس اجباری» برای هر درس
- * نوار بالا، دکمه شناور افزودن و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
+ * ۴) نمرات: کارنامه کامل — نمره مستمر و امتحان هر درس، منفی/مثبت دستی،
+ *    معدل هر درس، معدل کل و کلید «عکس اجباری»
+ * نوار بالا، دکمه شناور افزودن، امضای برنامه و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -155,7 +157,7 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(text = "برنامه هفتگی کلاسی") },
+                title = { Text(text = "کلاس چی") },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -279,7 +281,7 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                 transitionSpec = {
                     fadeIn(tween(180)) togetherWith fadeOut(tween(140))
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.weight(1f)
             ) { page ->
                 when (page) {
                     0 -> ScheduleContent(
@@ -325,6 +327,15 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                         onSetContinuousGrade = { name, grade ->
                             viewModel.setContinuousGrade(name, grade)
                         },
+                        onSetExamGrade = { name, grade ->
+                            viewModel.setExamGrade(name, grade)
+                        },
+                        onAdjustManualNegative = { name, delta ->
+                            viewModel.adjustManualNegative(name, delta)
+                        },
+                        onAdjustManualPositive = { name, delta ->
+                            viewModel.adjustManualPositive(name, delta)
+                        },
                         onSetPhotoRequired = { name, required ->
                             viewModel.setPhotoRequired(name, required)
                         },
@@ -337,6 +348,17 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                     )
                 }
             }
+
+            // امضای برنامه در پایین همه‌ی تب‌ها
+            Text(
+                text = "کلاس چی محصولی از MTM Code",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+            )
         }
     }
 

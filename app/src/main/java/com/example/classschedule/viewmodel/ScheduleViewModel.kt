@@ -162,6 +162,27 @@ class ScheduleViewModel(
         }
     }
 
+    // ثبت یا پاک کردن نمره امتحان یک درس در کارنامه (grade = null یعنی پاک کردن)
+    fun setExamGrade(name: String, grade: Float?) {
+        viewModelScope.launch {
+            subjectGradeRepository.setExamGrade(name, grade)
+        }
+    }
+
+    // افزودن یا کم کردن منفی دستی معلم برای یک درس (delta مثبت = افزودن، منفی = کم کردن)
+    fun adjustManualNegative(name: String, delta: Int) {
+        viewModelScope.launch {
+            subjectGradeRepository.adjustManualNegatives(name, delta)
+        }
+    }
+
+    // افزودن یا کم کردن مثبت دستی معلم برای یک درس (delta مثبت = افزودن، منفی = کم کردن)
+    fun adjustManualPositive(name: String, delta: Int) {
+        viewModelScope.launch {
+            subjectGradeRepository.adjustManualPositives(name, delta)
+        }
+    }
+
     // تعیین اینکه عکس تکلیف برای یک درس اجباری است یا نه
     fun setPhotoRequired(name: String, required: Boolean) {
         viewModelScope.launch {
