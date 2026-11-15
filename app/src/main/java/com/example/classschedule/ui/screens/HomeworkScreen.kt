@@ -52,6 +52,7 @@ private enum class HomeworkFilter(val label: String) {
  * محتوای تب «یادآوری تکالیف» — بدون Scaffold و نوار بالا
  * شامل: خلاصه وضعیت، فیلترها (همه / باز / انجام‌شده)
  * و فهرست تکالیف مرتب‌شده بر اساس نزدیک‌ترین مهلت
+ * قانون انجام‌شدن: تکلیف فقط با تیک + حداقل یک عکس بارگذاری‌شده «انجام‌شده» می‌شود
  */
 @Composable
 fun HomeworkContent(
@@ -60,33 +61,35 @@ fun HomeworkContent(
     onDeleteHomework: (Homework) -> Unit,
     onToggleDone: (Homework) -> Unit,
     onAddPhotos: (Homework) -> Unit,
-    onOpenPhoto: (Homework, Int) -> Unit
+    onOpenPhoto: (Homework, Int) -> Unit,
+    onDoneBlocked: () -> Unit
 ) {
     val today = remember { jalaliToday() }
     var filter by remember { mutableStateOf(HomeworkFilter.ALL) }
 
     // مرتب‌سازی: تکالیف باز اول (نزدیک‌ترین مهلت جلوتر)، انجام‌شده‌ها آخر
+    // (تکلیف بدون عکس همیشه «باز» حساب می‌شود حتی اگر تیک خورده باشد)
     val sortedHomework = remember(homeworkList, today) {
         homeworkList.sortedWith(
             compareBy(
-                { it.isDone },
+                { it.isEffectivelyDone },
                 { daysBetween(today, it.dueJalali) },
                 { it.dueTime }
             )
         )
     }
 
-    // شمارش‌ها برای خلاصه وضعیت و برچسب فیلترها
-    val openCount = homeworkList.count { !it.isDone }
+    // شمارش‌ها برای خلاصه وضعیت و برچسب فیلترها — بر اساس وضعیت واقعی (تیک + عکس)
+    val openCount = homeworkList.count { !it.isEffectivelyDone }
     val doneCount = homeworkList.size - openCount
     val overdueCount = homeworkList.count {
-        !it.isDone && daysBetween(today, it.dueJalali) < 0
+        !it.isEffectivelyDone && daysBetween(today, it.dueJalali) < 0
     }
 
     val filteredHomework = when (filter) {
         HomeworkFilter.ALL -> sortedHomework
-        HomeworkFilter.OPEN -> sortedHomework.filter { !it.isDone }
-        HomeworkFilter.DONE -> sortedHomework.filter { it.isDone }
+        HomeworkFilter.OPEN -> sortedHomework.filter { !it.isEffectivelyDone }
+        HomeworkFilter.DONE -> sortedHomework.filter { it.isEffectivelyDone }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -179,7 +182,8 @@ fun HomeworkContent(
                             onEditClick = { onEditHomework(item) },
                             onDeleteClick = { onDeleteHomework(item) },
                             onAddPhotos = { onAddPhotos(item) },
-                            onOpenPhoto = { index -> onOpenPhoto(item, index) }
+                            onOpenPhoto = { index -> onOpenPhoto(item, index) },
+                            onDoneBlocked = onDoneBlocked
                         )
                     }
                 }

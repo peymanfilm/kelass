@@ -63,6 +63,7 @@ private data class DueBadge(val label: String, val containerColor: Color?, val t
 /**
  * کارت نمایش یک تکلیف در تب «یادآوری تکالیف»
  * - دایره وضعیت: لمس برای انجام‌شده/بازگشت به حالت باز
+ *   (قانون: تکلیف بدون عکس تیک نمی‌خورد و با لمس آن، پیغام راهنما نشان داده می‌شود)
  * - برچسب رنگی وضعیت مهلت: گذشته از مهلت / امروز / فردا / روزهای مانده
  * - آیکون مداد: ویرایش / آیکون سطل زباله: حذف (با دیالوگ تأیید)
  * - نوار عکس‌های تکلیف: بندانگشتی عکس‌های بارگذاری‌شده + دکمه افزودن عکس از گالری
@@ -75,14 +76,18 @@ fun HomeworkCard(
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onAddPhotos: () -> Unit,
-    onOpenPhoto: (Int) -> Unit
+    onOpenPhoto: (Int) -> Unit,
+    onDoneBlocked: () -> Unit
 ) {
     val scheme: ClassColorScheme = ClassColors.forIndex(homework.colorIndex)
     val diffDays = daysBetween(from = today, to = homework.dueJalali)
+    // وضعیت واقعی انجام‌شدن: تیک + حداقل یک عکس بارگذاری‌شده
+    val effectivelyDone = homework.isEffectivelyDone
+    val canTick = homework.imageList.isNotEmpty()
 
     // برچسب وضعیت مهلت بر اساس فاصله تا امروز
     val badge = when {
-        homework.isDone -> DueBadge(
+        effectivelyDone -> DueBadge(
             label = "انجام شد",
             containerColor = DoneBadgeContainer,
             textColor = DoneBadgeText
@@ -129,18 +134,32 @@ fun HomeworkCard(
             ),
             verticalAlignment = Alignment.Top
         ) {
-            // دایره وضعیت انجام‌شدن: لمس برای تغییر وضعیت
+            // دایره وضعیت انجام‌شدن: تکلیف بدون عکس تیک نمی‌خورد (کمرنگ + پیغام راهنما)
             Box(
                 modifier = Modifier
                     .padding(top = 6.dp)
                     .size(26.dp)
                     .clip(CircleShape)
-                    .background(if (homework.isDone) scheme.accent else Color.Transparent)
-                    .border(width = 2.dp, color = scheme.accent, shape = CircleShape)
-                    .clickable(onClickLabel = "تغییر وضعیت انجام تکلیف", onClick = onToggleDone),
+                    .background(if (effectivelyDone) scheme.accent else Color.Transparent)
+                    .border(
+                        width = 2.dp,
+                        color = scheme.accent.copy(alpha = if (canTick) 1f else 0.4f),
+                        shape = CircleShape
+                    )
+                    .clickable(
+                        onClickLabel = "تغییر وضعیت انجام تکلیف",
+                        onClick = {
+                            if (homework.imageList.isEmpty() && !homework.isDone) {
+                                // بدون عکس تیک نمی‌خورد — پیغام راهنما
+                                onDoneBlocked()
+                            } else {
+                                onToggleDone()
+                            }
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                if (homework.isDone) {
+                if (effectivelyDone) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
@@ -157,9 +176,10 @@ fun HomeworkCard(
                 Text(
                     text = homework.title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = scheme.onContainer.copy(alpha = if (homework.isDone) 0.65f else 1f),
+                    color = scheme.onContainer.copy(alpha = if (effectivelyDone) 0.65f else 1f),
                     fontWeight = FontWeight.Bold,
-                    textDecoration = if (homework.isDone) TextDecoration.LineThrough else null
+                    // فقط تکلیف انجام‌شده با عکس، خط می‌خورد
+                    textDecoration = if (effectivelyDone) TextDecoration.LineThrough else null
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))

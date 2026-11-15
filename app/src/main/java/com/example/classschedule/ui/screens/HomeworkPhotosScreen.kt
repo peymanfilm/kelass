@@ -61,9 +61,15 @@ fun HomeworkPhotosContent(
     }
 
     // ترتیب تکالیف در گالری همان ترتیب تب تکالیف است (بازها با مهلت نزدیک‌تر جلوتر)
+    // تکلیف بدون عکس همیشه «باز» حساب می‌شود
     val groups = remember(homeworkList) {
         homeworkList.sortedWith(
-            compareBy({ it.isDone }, { it.dueYear }, { it.dueMonth }, { it.dueDay })
+            compareBy(
+                { it.isEffectivelyDone },
+                { it.dueYear },
+                { it.dueMonth },
+                { it.dueDay }
+            )
         )
     }
 

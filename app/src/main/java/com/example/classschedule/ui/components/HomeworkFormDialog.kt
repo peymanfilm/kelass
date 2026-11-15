@@ -298,7 +298,7 @@ fun HomeworkFormDialog(
                 Text(text = "عکس تکلیف (اختیاری)", style = MaterialTheme.typography.labelLarge)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "می‌توانید عکس تکلیف انجام‌شده را از گالری اضافه کنید.",
+                    text = "می‌توانید عکس تکلیف انجام‌شده را از گالری اضافه کنید. تکلیف فقط پس از بارگذاری حداقل یک عکس قابل تیک‌زدن است.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

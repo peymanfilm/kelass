@@ -1,5 +1,6 @@
 package com.example.classschedule.ui.screens
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -289,6 +290,14 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                         onAddPhotos = { launchPhotoPickerFor(it) },
                         onOpenPhoto = { homework, index ->
                             photoViewerTarget = homework to index
+                        },
+                        onDoneBlocked = {
+                            // قانون: تکلیف بدون عکس تیک نمی‌خورد — راهنمای کاربر
+                            Toast.makeText(
+                                context,
+                                "برای تیک‌زدن تکلیف، اول یک عکس از آن بارگذاری کنید",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     )
                     else -> HomeworkPhotosContent(
@@ -435,7 +444,12 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     if (showPhotoTargetDialog) {
         HomeworkPickerForPhotosDialog(
             homeworkList = allHomework.sortedWith(
-                compareBy({ it.isDone }, { it.dueYear }, { it.dueMonth }, { it.dueDay })
+                compareBy(
+                    { it.isEffectivelyDone },
+                    { it.dueYear },
+                    { it.dueMonth },
+                    { it.dueDay }
+                )
             ),
             onSelect = { homework ->
                 showPhotoTargetDialog = false

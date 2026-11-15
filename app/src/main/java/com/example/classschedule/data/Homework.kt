@@ -36,4 +36,12 @@ data class Homework(
     /** فهرست نام فایل عکس‌های این تکلیف به ترتیب افزودن */
     val imageList: List<String>
         get() = imageNames.split(";").map { it.trim() }.filter { it.isNotEmpty() }
+
+    /**
+     * قانون انجام‌شدن تکلیف: تکلیف فقط وقتی «انجام‌شده» واقعی است
+     * که کاربر علامت تیک زده باشد و حداقل یک عکس از تکلیف بارگذاری کرده باشد.
+     * بدون عکس، تکلیف همیشه در فهرست «باز» می‌ماند و عنوانش خط نمی‌خورد.
+     */
+    val isEffectivelyDone: Boolean
+        get() = isDone && imageList.isNotEmpty()
 }
