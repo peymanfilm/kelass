@@ -9,8 +9,11 @@ import com.example.classschedule.data.ClassSchedule
 import com.example.classschedule.data.Homework
 import com.example.classschedule.data.HomeworkRepository
 import com.example.classschedule.data.SettingsRepository
+import com.example.classschedule.data.SubjectGrade
+import com.example.classschedule.data.SubjectGradeRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -22,6 +25,7 @@ import kotlinx.coroutines.launch
 class ScheduleViewModel(
     private val classRepository: ClassRepository,
     private val homeworkRepository: HomeworkRepository,
+    private val subjectGradeRepository: SubjectGradeRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
@@ -38,6 +42,34 @@ class ScheduleViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = emptyList()
     )
+
+    // کارنامه: نمره مستمر و قانون عکس اجباری هر درس
+    val allSubjectGrades: StateFlow<List<SubjectGrade>> = subjectGradeRepository.allGrades.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList()
+    )
+
+    init {
+        // همگام‌سازی خودکار درس‌های کارنامه:
+        // هر درسِ برنامه‌ی هفتگی و هر درسِ تکالیف، یک ردیف در کارنامه دارد؛
+        // تکالیف بدون درس هم زیر گروه «بدون درس» در کارنامه حساب می‌شوند.
+        viewModelScope.launch {
+            combine(classRepository.allClasses, homeworkRepository.allHomework) { classes, homework ->
+                val names = classes.map { it.name.trim() }
+                    .filter { it.isNotBlank() } +
+                    homework.map { it.subject.trim() }
+                        .filter { it.isNotBlank() }
+                val hasNoSubjectHomework = homework.any { it.subject.trim().isBlank() }
+                Pair(names.distinct(), hasNoSubjectHomework)
+            }.collect { (names, hasNoSubjectHomework) ->
+                names.forEach { subjectGradeRepository.ensureExists(it) }
+                if (hasNoSubjectHomework) {
+                    subjectGradeRepository.ensureExists(SubjectGrade.NO_SUBJECT)
+                }
+            }
+        }
+    }
 
     // تنظیمات برنامه: رنگ تم و نوع نمایش (تک‌روز / کامل هفته)
     val settings: StateFlow<AppSettings> = settingsRepository.settings
@@ -122,6 +154,36 @@ class ScheduleViewModel(
             homeworkRepository.update(homework.copy(imageNames = updatedNames))
         }
     }
+
+    // ثبت یا پاک کردن نمره مستمر یک درس در کارنامه (grade = null یعنی پاک کردن)
+    fun setContinuousGrade(name: String, grade: Float?) {
+        viewModelScope.launch {
+            subjectGradeRepository.setContinuousGrade(name, grade)
+        }
+    }
+
+    // تعیین اینکه عکس تکلیف برای یک درس اجباری است یا نه
+    fun setPhotoRequired(name: String, required: Boolean) {
+        viewModelScope.launch {
+            subjectGradeRepository.setPhotoRequired(name, required)
+        }
+    }
+
+    // افزودن دستی یک درس به کارنامه (اگر از قبل باشد، تغییری نمی‌کند)
+    fun addSubject(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            subjectGradeRepository.ensureExists(trimmed)
+        }
+    }
+
+    // حذف یک درس از کارنامه (تکالیف آن درس حذف نمی‌شوند)
+    fun deleteSubject(name: String) {
+        viewModelScope.launch {
+            subjectGradeRepository.delete(name)
+        }
+    }
 }
 
 /**
@@ -130,13 +192,19 @@ class ScheduleViewModel(
 class ScheduleViewModelFactory(
     private val classRepository: ClassRepository,
     private val homeworkRepository: HomeworkRepository,
+    private val subjectGradeRepository: SubjectGradeRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ScheduleViewModel::class.java)) {
-            return ScheduleViewModel(classRepository, homeworkRepository, settingsRepository) as T
+            return ScheduleViewModel(
+                classRepository,
+                homeworkRepository,
+                subjectGradeRepository,
+                settingsRepository
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }

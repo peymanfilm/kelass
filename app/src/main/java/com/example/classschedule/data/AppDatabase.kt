@@ -8,13 +8,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * دیتابیس اصلی Room — نسخه ۳: افزوده شدن ستون عکس‌های تکلیف (imageNames)
+ * دیتابیس اصلی Room — نسخه ۴: افزوده شدن جدول کارنامه (subject_grade)
  * داده‌ها به صورت محلی و آفلاین ذخیره می‌شوند و با بستن برنامه پاک نمی‌شوند.
  * مهاجرت‌ها، داده‌های ثبت‌شده‌ی کاربر را بدون تغییر نگه می‌دارند.
  */
 @Database(
-    entities = [ClassSchedule::class, Homework::class],
-    version = 3,
+    entities = [ClassSchedule::class, Homework::class, SubjectGrade::class],
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -22,6 +22,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun classDao(): ClassDao
 
     abstract fun homeworkDao(): HomeworkDao
+
+    abstract fun subjectGradeDao(): SubjectGradeDao
 
     companion object {
 
@@ -54,6 +56,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** مهاجرت نسخه ۳ به ۴: ساخت جدول کارنامه (نمره مستمر و قانون عکس هر درس) */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `subject_grade` (" +
+                        "`name` TEXT NOT NULL, " +
+                        "`continuousGrade` REAL, " +
+                        "`photoRequired` INTEGER NOT NULL DEFAULT 1, " +
+                        "PRIMARY KEY(`name`)"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -65,7 +80,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "class_schedule_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { INSTANCE = it }
             }

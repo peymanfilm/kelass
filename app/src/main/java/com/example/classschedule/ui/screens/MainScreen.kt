@@ -82,7 +82,8 @@ private val MAIN_TABS = listOf(
  * ۱) برنامه هفتگی: نمای کامل هفته یا تک‌روز (بر اساس انتخاب کاربر)
  * ۲) یادآوری تکالیف: فهرست تکالیف با تاریخ مهلت شمسی و وضعیت انجام
  * ۳) عکس تکالیف: گالری عکس‌های بارگذاری‌شده برای هر تکلیف
- * ۴) نمرات: شمارش منفی‌ها — تکلیفی که مهلتش گذشته و عکسی ندارد منفی می‌گیرد
+ * ۴) نمرات: کارنامه کلاسی — نمره مستمر هر درس، منفی‌ها (هر منفی ۰٫۲۵ کسر می‌کند)،
+ *    نمره نهایی و کلید «عکس اجباری» برای هر درس
  * نوار بالا، دکمه شناور افزودن و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,6 +94,7 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     val scope = rememberCoroutineScope()
     val allClasses by viewModel.allClasses.collectAsState()
     val allHomework by viewModel.allHomework.collectAsState()
+    val allSubjectGrades by viewModel.allSubjectGrades.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val isWeekView = settings.viewMode == VIEW_MODE_WEEK
 
@@ -318,7 +320,16 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                         }
                     )
                     else -> GradesContent(
+                        subjectGrades = allSubjectGrades,
                         homeworkList = allHomework,
+                        onSetContinuousGrade = { name, grade ->
+                            viewModel.setContinuousGrade(name, grade)
+                        },
+                        onSetPhotoRequired = { name, required ->
+                            viewModel.setPhotoRequired(name, required)
+                        },
+                        onAddSubject = { viewModel.addSubject(it) },
+                        onDeleteSubject = { viewModel.deleteSubject(it) },
                         onAddPhotos = { launchPhotoPickerFor(it) },
                         onOpenPhoto = { homework, index ->
                             photoViewerTarget = homework to index

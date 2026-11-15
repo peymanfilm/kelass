@@ -18,6 +18,7 @@ import com.example.classschedule.data.AppDatabase
 import com.example.classschedule.data.ClassRepository
 import com.example.classschedule.data.HomeworkRepository
 import com.example.classschedule.data.SettingsRepository
+import com.example.classschedule.data.SubjectGradeRepository
 import com.example.classschedule.ui.screens.MainScreen
 import com.example.classschedule.ui.theme.ClassScheduleTheme
 import com.example.classschedule.viewmodel.ScheduleViewModel
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
             ScheduleViewModelFactory(
                 ClassRepository(database.classDao()),
                 HomeworkRepository(database.homeworkDao()),
+                SubjectGradeRepository(database.subjectGradeDao()),
                 settingsRepository
             )
         }
