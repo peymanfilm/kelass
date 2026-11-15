@@ -1,5 +1,7 @@
 package com.example.classschedule.util
 
+import java.util.Calendar
+
 /**
  * تاریخ شمسی (جلالی): سال / ماه / روز
  * تبدیل میلادی به شمسی با الگوریتم استاندارد جلالی — دقیق و بدون کتابخانه خارجی
@@ -11,6 +13,58 @@ data class JalaliDate(
 ) {
     /** نمایش خلاصه با ارقام فارسی، مثل ۱۴۰۵/۸/۲۴ */
     fun toCompactString(): String = "$year/$month/$day".toPersianDigits()
+
+    /** نام ماه شمسی این تاریخ؛ مثل «آذر» */
+    fun monthName(): String = JALALI_MONTHS[(month - 1).coerceIn(0, JALALI_MONTHS.size - 1)]
+}
+
+/** نام ماه‌های سال شمسی */
+val JALALI_MONTHS = listOf(
+    "فروردین", "اردیبهشت", "خرداد",
+    "تیر", "مرداد", "شهریور",
+    "مهر", "آبان", "آذر",
+    "دی", "بهمن", "اسفند"
+)
+
+/** تاریخ شمسی امروز */
+fun jalaliToday(): JalaliDate {
+    val calendar = Calendar.getInstance()
+    return gregorianToJalali(
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH) + 1,
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
+}
+
+/** تاریخ شمسیِ n روز بعد (مثبت) یا قبل (منفی) از امروز؛ مثلا ۱ = فردا */
+fun jalaliTodayPlus(daysAhead: Int): JalaliDate {
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.DAY_OF_YEAR, daysAhead)
+    return gregorianToJalali(
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH) + 1,
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
+}
+
+/** آیا سال شمسی کبیسه است؟ */
+fun isJalaliLeap(jy: Int): Boolean = jalCal(jy).leap == 0
+
+/** تعداد روزهای یک ماه شمسی (۶ ماه اول ۳۱ روز، ماه‌های ۷ تا ۱۱ سی روز، اسفند ۲۹ یا ۳۰ روز) */
+fun jalaliMonthLength(jy: Int, jm: Int): Int = when {
+    jm <= 6 -> 31
+    jm <= 11 -> 30
+    else -> if (isJalaliLeap(jy)) 30 else 29
+}
+
+/** فاصله‌ی روز بین دو تاریخ شمسی (مثبت = تاریخ دوم بعد از اول) */
+fun daysBetween(from: JalaliDate, to: JalaliDate): Int =
+    jalaliToJdn(to.year, to.month, to.day) - jalaliToJdn(from.year, from.month, from.day)
+
+/** شماره‌ی روز مطلق (JDN) از تاریخ شمسی — برای مقایسه و فاصله‌گیری تاریخ‌ها */
+private fun jalaliToJdn(jy: Int, jm: Int, jd: Int): Int {
+    val info = jalCal(jy)
+    return g2d(jy + 621, 3, info.marchDay) + (jm - 1) * 31 - div(jm, 7) * (jm - 7) + jd - 1
 }
 
 /** تبدیل تاریخ میلادی به تاریخ شمسی؛ مثلا 2026-11-15 به 1405/8/24 */

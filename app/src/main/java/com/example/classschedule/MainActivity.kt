@@ -16,8 +16,9 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.example.classschedule.data.AppDatabase
 import com.example.classschedule.data.ClassRepository
+import com.example.classschedule.data.HomeworkRepository
 import com.example.classschedule.data.SettingsRepository
-import com.example.classschedule.ui.screens.ScheduleScreen
+import com.example.classschedule.ui.screens.MainScreen
 import com.example.classschedule.ui.theme.ClassScheduleTheme
 import com.example.classschedule.viewmodel.ScheduleViewModel
 import com.example.classschedule.viewmodel.ScheduleViewModelFactory
@@ -34,10 +35,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val settingsRepository = SettingsRepository(applicationContext)
+        val database = AppDatabase.getDatabase(applicationContext)
 
         val viewModel: ScheduleViewModel by viewModels {
             ScheduleViewModelFactory(
-                ClassRepository(AppDatabase.getDatabase(applicationContext).classDao()),
+                ClassRepository(database.classDao()),
+                HomeworkRepository(database.homeworkDao()),
                 settingsRepository
             )
         }
@@ -65,7 +68,7 @@ private fun RtlAppContent(viewModel: ScheduleViewModel) {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            ScheduleScreen(viewModel = viewModel)
+            MainScreen(viewModel = viewModel)
         }
     }
 }

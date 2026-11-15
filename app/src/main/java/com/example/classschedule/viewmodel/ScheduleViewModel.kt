@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.classschedule.data.AppSettings
 import com.example.classschedule.data.ClassRepository
 import com.example.classschedule.data.ClassSchedule
+import com.example.classschedule.data.Homework
+import com.example.classschedule.data.HomeworkRepository
 import com.example.classschedule.data.SettingsRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,16 +16,24 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel اصلی برنامه (لایه MVVM)
- * وظیفه: نگهداری وضعیت کلاس‌ها و تنظیمات (رنگ و نوع نمایش)
- * و ارتباط بین UI و Repository
+ * وظیفه: نگهداری وضعیت کلاس‌ها، تکالیف و تنظیمات (رنگ و نوع نمایش)
+ * و ارتباط بین UI و Repository ها
  */
 class ScheduleViewModel(
-    private val repository: ClassRepository,
+    private val classRepository: ClassRepository,
+    private val homeworkRepository: HomeworkRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     // لیست همه کلاس‌ها به صورت StateFlow؛ هر تغییر دیتابیس به صورت خودکار در UI اعمال می‌شود
-    val allClasses: StateFlow<List<ClassSchedule>> = repository.allClasses.stateIn(
+    val allClasses: StateFlow<List<ClassSchedule>> = classRepository.allClasses.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList()
+    )
+
+    // لیست همه‌ی تکالیف به صورت StateFlow
+    val allHomework: StateFlow<List<Homework>> = homeworkRepository.allHomework.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = emptyList()
@@ -50,21 +60,49 @@ class ScheduleViewModel(
     // افزودن کلاس جدید
     fun addClass(classSchedule: ClassSchedule) {
         viewModelScope.launch {
-            repository.insert(classSchedule)
+            classRepository.insert(classSchedule)
         }
     }
 
     // ویرایش کلاس موجود
     fun updateClass(classSchedule: ClassSchedule) {
         viewModelScope.launch {
-            repository.update(classSchedule)
+            classRepository.update(classSchedule)
         }
     }
 
     // حذف کلاس
     fun deleteClass(classSchedule: ClassSchedule) {
         viewModelScope.launch {
-            repository.delete(classSchedule)
+            classRepository.delete(classSchedule)
+        }
+    }
+
+    // افزودن تکلیف جدید
+    fun addHomework(homework: Homework) {
+        viewModelScope.launch {
+            homeworkRepository.insert(homework)
+        }
+    }
+
+    // ویرایش تکلیف موجود
+    fun updateHomework(homework: Homework) {
+        viewModelScope.launch {
+            homeworkRepository.update(homework)
+        }
+    }
+
+    // حذف تکلیف
+    fun deleteHomework(homework: Homework) {
+        viewModelScope.launch {
+            homeworkRepository.delete(homework)
+        }
+    }
+
+    // تغییر وضعیت انجام‌شدن تکلیف (انجام شد / بازگشت به حالت باز)
+    fun toggleHomeworkDone(homework: Homework) {
+        viewModelScope.launch {
+            homeworkRepository.update(homework.copy(isDone = !homework.isDone))
         }
     }
 }
@@ -73,14 +111,15 @@ class ScheduleViewModel(
  * کارخانه ساخت ViewModel برای تزریق Repository ها
  */
 class ScheduleViewModelFactory(
-    private val repository: ClassRepository,
+    private val classRepository: ClassRepository,
+    private val homeworkRepository: HomeworkRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ScheduleViewModel::class.java)) {
-            return ScheduleViewModel(repository, settingsRepository) as T
+            return ScheduleViewModel(classRepository, homeworkRepository, settingsRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }

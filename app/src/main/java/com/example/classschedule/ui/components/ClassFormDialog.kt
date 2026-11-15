@@ -30,11 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,13 +43,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.classschedule.data.ClassSchedule
 import com.example.classschedule.ui.theme.ClassColors
 import com.example.classschedule.util.WeekDays
+import com.example.classschedule.util.formatHourMinute
 import com.example.classschedule.util.toPersianDigits
-import java.util.Locale
 
 /**
  * دیالوگ افزودن / ویرایش کلاس
@@ -90,7 +85,7 @@ fun ClassFormDialog(
             initialMinute = startTime.substringAfter(":", "0").toIntOrNull() ?: 0,
             onDismiss = { showStartPicker = false },
             onConfirm = { hour, minute ->
-                startTime = formatTime(hour, minute)
+                startTime = formatHourMinute(hour, minute)
                 timeError = null
                 showStartPicker = false
             }
@@ -105,7 +100,7 @@ fun ClassFormDialog(
             initialMinute = endTime.substringAfter(":", "0").toIntOrNull() ?: 0,
             onDismiss = { showEndPicker = false },
             onConfirm = { hour, minute ->
-                endTime = formatTime(hour, minute)
+                endTime = formatHourMinute(hour, minute)
                 timeError = null
                 showEndPicker = false
             }
@@ -336,76 +331,7 @@ private fun TimeField(
     }
 }
 
-/**
- * دیالوگ TimePicker با ساعت ۲۴ ساعته
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AppTimePickerDialog(
-    title: String,
-    initialHour: Int,
-    initialMinute: Int,
-    onConfirm: (hour: Int, minute: Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val timePickerState = rememberTimePickerState(
-        initialHour = initialHour,
-        initialMinute = initialMinute,
-        is24Hour = true
-    )
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(top = 20.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    TimePicker(state = timePickerState)
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(text = "انصراف")
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    TextButton(
-                        onClick = {
-                            onConfirm(timePickerState.hour, timePickerState.minute)
-                        }
-                    ) {
-                        Text(text = "تأیید")
-                    }
-                }
-            }
-        }
-    }
-}
-
 // ---------- توابع کمکی زمان ----------
-
-private fun formatTime(hour: Int, minute: Int): String =
-    String.format(Locale.US, "%02d:%02d", hour, minute)
 
 private fun parseTime(time: String): Pair<Int, Int> {
     val hour = time.substringBefore(":").toIntOrNull() ?: 0
