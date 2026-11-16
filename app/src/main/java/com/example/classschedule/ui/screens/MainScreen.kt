@@ -31,9 +31,9 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.classschedule.data.ClassSchedule
 import com.example.classschedule.data.Homework
@@ -80,13 +81,13 @@ private val MAIN_TABS = listOf(
 )
 
 /**
- * صفحه اصلی برنامه «کلاس چی» با تب‌های بالای صفحه:
+ * صفحه اصلی برنامه «کلاس چی» با نوار منو در پایین صفحه (سبک اپ‌های موبایل):
  * ۱) برنامه هفتگی: نمای کامل هفته یا تک‌روز (بر اساس انتخاب کاربر)
  * ۲) یادآوری تکالیف: فهرست تکالیف با تاریخ مهلت شمسی و وضعیت انجام
  * ۳) انجام تکالیف: گالری عکس‌های بارگذاری‌شده برای هر تکلیف
  * ۴) نمرات: کارنامه کامل — نمره مستمر و امتحان هر درس، منفی/مثبت دستی،
  *    معدل هر درس، معدل کل و کلید «عکس اجباری»
- * نوار بالا، دکمه شناور افزودن، امضای برنامه و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
+ * نوار پایین، نوار بالا، دکمه شناور افزودن، امضای برنامه و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -155,6 +156,31 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     var showColorDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        // نوار منوی اصلی در پایین صفحه — مثل اپ‌های موبایل
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                MAIN_TABS.forEachIndexed { index, tab ->
+                    NavigationBarItem(
+                        selected = selectedMainTab == index,
+                        onClick = { selectedMainTab = index },
+                        icon = {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = tab.title
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = tab.title,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    )
+                }
+            }
+        },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(text = "کلاس چی") },
@@ -258,22 +284,6 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // تب‌های اصلی برنامه — اسکرول‌پذیر تا در صفحه‌های باریک هم جا شوند
-            ScrollableTabRow(
-                selectedTabIndex = selectedMainTab,
-                edgePadding = 12.dp,
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                MAIN_TABS.forEachIndexed { index, tab ->
-                    Tab(
-                        selected = selectedMainTab == index,
-                        onClick = { selectedMainTab = index },
-                        text = { Text(text = tab.title) },
-                        icon = { Icon(imageVector = tab.icon, contentDescription = null) }
-                    )
-                }
-            }
-
             // محتوای تب فعال با انتقال نرم بین تب‌ها
             AnimatedContent(
                 targetState = selectedMainTab,
@@ -349,7 +359,7 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                 }
             }
 
-            // امضای برنامه در پایین همه‌ی تب‌ها
+            // امضای برنامه — بالای نوار منوی پایین صفحه
             Text(
                 text = "کلاس چی محصولی از MTM Code",
                 style = MaterialTheme.typography.labelSmall,
