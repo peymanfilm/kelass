@@ -89,6 +89,12 @@ class ScheduleViewModel(
         settingsRepository.setViewMode(mode)
     }
 
+    // تغییر پنل (نقش کاربر: دانش‌آموز / معلم / مدیر / مالک)
+    // نقش روی گوشی ذخیره می‌شود و UI به صورت زنده عوض می‌شود
+    fun setRole(role: Int) {
+        settingsRepository.setRole(role)
+    }
+
     // افزودن کلاس جدید
     fun addClass(classSchedule: ClassSchedule) {
         viewModelScope.launch {
