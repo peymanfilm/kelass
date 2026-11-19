@@ -1,8 +1,11 @@
 package com.example.classschedule.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,7 +29,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,28 +40,35 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.classschedule.data.AppRoles
 import com.example.classschedule.data.AuthRepository
 
 /**
  * دروازه‌ی ورود برنامه «کلاس چی» — احراز هویت آفلاین با نام کاربری و رمز عبور:
- * - حساب پیش‌فرض: admin / ۱۲۳۴ (راهنمای ورود روی همین صفحه نمایش داده می‌شود)
- * - بعد از ورود، صفحه‌ی انتخاب پنل (دانش‌آموز / معلم / مدیر / مالک برند) باز می‌شود
- * - هیچ اینترنت، سرور یا هزینه‌ای در کار نیست؛ رمز هش‌شده روی خود گوشی ذخیره می‌شود
+ * - چهار حساب نقش‌محور: student1 (دانش‌آموز) / teacher1 (معلم) / manager (مدیر) / owner (مالک برند)
+ * - رمز پیش‌فرض همه‌ی حساب‌ها «۱۲۳۴» است و بعد از ورود، پنل همان نقش باز می‌شود
+ * - هیچ اینترنت، سرور یا هزینه‌ای در کار نیست؛ رمزها هش‌شده روی خود گوشی ذخیره می‌شوند
+ *
+ * نکته‌ی ظاهری: برچسب «نام کاربری» و «رمز عبور» بیرون کادر و بالای آن قرار گرفته
+ * تا با آیکون داخل کادر هیچ‌وقت هم‌پوشان نشود (مشکل هم‌پوشانی در حالت راست‌به‌چپ).
  */
 @Composable
 fun LoginScreen(
-    onLogin: (username: String, password: String) -> Boolean
+    authRepository: AuthRepository,
+    onLogin: (username: String, password: String) -> Int
 ) {
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var showPassword by rememberSaveable { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // حساب‌های فعلی روی این گوشی — اگر مدیر یا مالک نام کاربری را عوض کرده باشد، همین‌جا دیده می‌شود
+    val accounts = remember { authRepository.accounts() }
 
     Column(
         modifier = Modifier
@@ -119,14 +128,15 @@ fun LoginScreen(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // نام کاربری
+                // نام کاربری — برچسب بیرون کادر تا با آیکون داخل کادر هم‌پوشان نشود
+                FieldLabel(text = "نام کاربری")
                 OutlinedTextField(
                     value = username,
                     onValueChange = {
                         username = it
                         errorMessage = null
                     },
-                    label = { Text(text = "نام کاربری") },
+                    placeholder = { Text(text = "مثلاً student1") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Person,
@@ -139,16 +149,17 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // رمز عبور با دکمه‌ی نمایش/پنهان‌کردن
+                // رمز عبور با دکمه‌ی نمایش/پنهان‌کردن — برچسب بیرون کادر
+                FieldLabel(text = "رمز عبور")
                 OutlinedTextField(
                     value = password,
                     onValueChange = {
                         password = it
                         errorMessage = null
                     },
-                    label = { Text(text = "رمز عبور") },
+                    placeholder = { Text(text = "رمز را وارد کنید") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Lock,
@@ -197,14 +208,18 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // دکمه ورود
+                // دکمه ورود — بعد از ورود، پنل همان نقش باز می‌شود
                 Button(
                     onClick = {
                         when {
                             username.trim().isEmpty() -> errorMessage = "نام کاربری را وارد کنید"
                             password.isEmpty() -> errorMessage = "رمز عبور را وارد کنید"
-                            !onLogin(username, password) ->
-                                errorMessage = "نام کاربری یا رمز عبور اشتباه است"
+                            else -> {
+                                val role = onLogin(username, password)
+                                if (role == AppRoles.ROLE_NONE) {
+                                    errorMessage = "نام کاربری یا رمز عبور اشتباه است"
+                                }
+                            }
                         }
                     },
                     shape = RoundedCornerShape(14.dp),
@@ -222,23 +237,35 @@ fun LoginScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // راهنمای حساب پیش‌فرض — کاربر باید بداند با چه حسابی وارد شود
-                OutlinedButton(
-                    onClick = {
-                        username = AuthRepository.DEFAULT_USERNAME
-                        password = AuthRepository.DEFAULT_PASSWORD
-                        errorMessage = null
-                    },
-                    shape = RoundedCornerShape(12.dp),
+                // ---------- چیپ‌های حساب‌ها: لمس کنید تا نام کاربری پر شود ----------
+                Text(
+                    text = "حساب‌های برنامه (لمس کنید تا نام کاربری نوشته شود):",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "پرکردن خودکار حساب پیش‌فرض (admin / 1234)",
-                        style = MaterialTheme.typography.labelMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                accounts.forEach { account ->
+                    AccountChip(
+                        role = account.role,
+                        username = account.username,
+                        onPick = {
+                            username = account.username
+                            errorMessage = null
+                        }
                     )
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
+                Text(
+                    text = "رمز پیش‌فرض همه‌ی حساب‌ها: ۱۲۳۴ — اگر مدیر یا مالک برند رمز را عوض کرده باشد، رمز جدید را وارد کنید.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
@@ -255,7 +282,8 @@ fun LoginScreen(
             Text(
                 text = "احراز هویت کاملاً روی همین گوشی انجام می‌شود؛ " +
                     "بدون اینترنت، بدون سرور و بدون هیچ هزینه‌ای. " +
-                    "برای امنیت بیشتر، از تب تنظیمات پنل مالک برند MTM Kode رمز را عوض کنید.",
+                    "مدیر می‌تواند حساب دانش‌آموزان و معلمان را از تب «حساب‌ها» عوض کند " +
+                    "و مالک برند MTM Kode علاوه بر آن‌ها، حساب مدیر را هم تغییر می‌دهد.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -267,5 +295,80 @@ fun LoginScreen(
 
         // امضای برنامه — نام برند برجسته می‌شود
         BrandSignature(verticalPadding = 14.dp)
+    }
+}
+
+/**
+ * برچسب فیلد — بیرون و بالای کادر نوشته می‌شود تا با آیکون داخل کادر هم‌پوشانی نداشته باشد
+ */
+@Composable
+private fun FieldLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp)
+    )
+}
+
+/**
+ * چیپ حساب: آیکون رنگی نقش + برچسب فارسی + نام کاربری فعلی؛
+ * لمس آن نام کاربری را در فیلد ورود می‌نویسد.
+ */
+@Composable
+private fun AccountChip(
+    role: Int,
+    username: String,
+    onPick: () -> Unit
+) {
+    val accent = roleAccent(role)
+    val container = roleContainer(role)
+    val icon = roleIcon(role)
+    val title = roleName(role)
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = container,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = "پرکردن نام کاربری $title", onClick = onPick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = accent
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = username,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "انتخاب",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = accent,
+                modifier = Modifier
+                    .border(1.dp, accent.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
     }
 }

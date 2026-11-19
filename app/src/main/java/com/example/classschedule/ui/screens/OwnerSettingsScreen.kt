@@ -1,6 +1,5 @@
 package com.example.classschedule.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Palette
@@ -39,16 +36,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -60,25 +53,26 @@ import com.example.classschedule.data.AuthRepository
 /**
  * محتوای تب «تنظیمات» در پنل مالک برند MTM Kode:
  * ۱) نام مجموعه: مدرسه‌ای که در نوار بالای همه‌ی پنل‌ها نمایش داده می‌شود
- * ۲) امنیت: نام کاربری حساب و تغییر رمز عبور (دروازه‌ی ورود برنامه)
+ * ۲) امنیت حساب: تغییر نام کاربری و رمز عبور خودِ مالک برند (با تأیید رمز فعلی)
+ *    — حساب‌های بقیه نقش‌ها از تب «حساب‌ها» مدیریت می‌شود
  * ۳) ظاهر برنامه: نمای هفته/تک‌روز + رنگ برنامه (دیالوگ رنگ از MainScreen باز می‌شود)
- * ۴) تعویض پنل: پرش سریع به پنل دانش‌آموز / معلم / مدیر
- * ۵) درباره برنامه: معرفی و نکته‌ی آفلاین بودن
+ * ۴) درباره برنامه: معرفی و نکته‌ی آفلاین بودن
  */
 @Composable
 fun OwnerSettingsContent(
     isWeekView: Boolean,
     onToggleWeekView: (Boolean) -> Unit,
     onOpenColorSettings: () -> Unit,
-    onSelectRole: (Int) -> Unit,
     schoolName: String,
     onSetSchoolName: (String) -> Unit,
     authRepository: AuthRepository
 ) {
     // دیالوگ ویرایش نام مجموعه
     var showSchoolNameDialog by remember { mutableStateOf(false) }
-    // دیالوگ تغییر رمز عبور (دروازه‌ی احراز هویت)
+    // دیالوگ تغییر رمز عبور حساب مالک برند
     var showPasswordDialog by remember { mutableStateOf(false) }
+    // دیالوگ تغییر نام کاربری حساب مالک برند
+    var showUsernameDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -133,11 +127,12 @@ fun OwnerSettingsContent(
             }
         }
 
-        // ---------- امنیت و رمز عبور ----------
+        // ---------- امنیت حساب مالک برند ----------
         item(key = "security-card") {
-            val currentUsername by authRepository.username.collectAsState()
-            SettingsCard(title = "امنیت حساب") {
-                // ردیف نام کاربری حساب فعال
+            // با باز/بسته شدن دیالوگ‌ها، نام کاربری تازه خوانده می‌شود
+            val currentUsername = authRepository.usernameOf(AppRoles.ROLE_OWNER)
+            SettingsCard(title = "امنیت حساب مالک برند") {
+                // ردیف نام کاربری فعلی
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -151,7 +146,7 @@ fun OwnerSettingsContent(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "نام کاربری",
+                            text = "نام کاربری شما",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -167,7 +162,48 @@ fun OwnerSettingsContent(
                 Spacer(modifier = Modifier.height(4.dp))
                 HorizontalThinDivider()
 
-                // ردیف تغییر رمز عبور
+                // ردیف تغییر نام کاربری — با تأیید رمز فعلی
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            onClickLabel = "تغییر نام کاربری",
+                            onClick = { showUsernameDialog = true }
+                        )
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ManageAccounts,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "تغییر نام کاربری",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "حساب ورود خودتان — با تأیید رمز فعلی",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronLeft,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalThinDivider()
+
+                // ردیف تغییر رمز عبور — با تأیید رمز فعلی
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -193,7 +229,7 @@ fun OwnerSettingsContent(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "رمز دروازه‌ی ورود برنامه — هش‌شده روی خود گوشی",
+                            text = "حساب ورود خودتان — هش‌شده روی خود گوشی",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -288,56 +324,18 @@ fun OwnerSettingsContent(
             }
         }
 
-        // ---------- تعویض پنل ----------
-        item(key = "switch-panel-card") {
-            SettingsCard(title = "تعویض پنل") {
-                Text(
-                    text = "برای ورود به پنل دیگران، یکی از گزینه‌های زیر را لمس کنید:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                RoleSwitchRow(
-                    icon = Icons.Default.School,
-                    title = roleTitle(AppRoles.ROLE_STUDENT),
-                    description = "برنامه، تکالیف، عکس تکالیف و دیدن کارنامه",
-                    accent = Color(0xFF2E7D32),
-                    container = Color(0xFFE8F5E9),
-                    onClick = { onSelectRole(AppRoles.ROLE_STUDENT) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                RoleSwitchRow(
-                    icon = Icons.Default.HistoryEdu,
-                    title = roleTitle(AppRoles.ROLE_TEACHER),
-                    description = "ثبت تکلیف، ثبت نمره و گالری تحویل‌شده‌ها",
-                    accent = Color(0xFFE65100),
-                    container = Color(0xFFFFF3E0),
-                    onClick = { onSelectRole(AppRoles.ROLE_TEACHER) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                RoleSwitchRow(
-                    icon = Icons.Default.ManageAccounts,
-                    title = roleTitle(AppRoles.ROLE_MANAGER),
-                    description = "خلاصه و آمار، مدیریت کلاس‌ها — بدون ثبت نمره",
-                    accent = Color(0xFF00695C),
-                    container = Color(0xFFE0F2F1),
-                    onClick = { onSelectRole(AppRoles.ROLE_MANAGER) }
-                )
-            }
-        }
-
         // ---------- درباره برنامه ----------
         item(key = "about-card") {
             SettingsCard(title = "درباره برنامه") {
                 AboutRow(label = "نام برنامه", value = "کلاس چی")
-                AboutRow(label = "نسخه", value = "۱٫۷")
+                AboutRow(label = "نسخه", value = "۱٫۸")
                 AboutRow(label = "سازنده و مالک برند", value = "MTM Kode")
                 AboutRow(label = "ذخیره‌سازی", value = "آفلاین روی خود گوشی")
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "همه‌ی اطلاعات فقط روی همین گوشی ذخیره می‌شود؛ " +
                         "بدون نیاز به اینترنت، بدون هاست و بدون هیچ هزینه‌ای. " +
-                        "داده‌های همه‌ی پنل‌ها یکی است و با تعویض پنل چیزی از بین نمی‌رود.",
+                        "هر حساب پنل نقش خودش را دارد؛ برای پنل دیگر، با آن حساب وارد شوید.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -387,6 +385,95 @@ fun OwnerSettingsContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .clickable { showSchoolNameDialog = false }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            }
+        )
+    }
+
+    // دیالوگ تغییر نام کاربری حساب مالک برند — با تأیید رمز فعلی
+    if (showUsernameDialog) {
+        val context = LocalContext.current
+        var currentPassword by remember { mutableStateOf("") }
+        var newUsername by remember { mutableStateOf(authRepository.usernameOf(AppRoles.ROLE_OWNER)) }
+        var dialogError by remember { mutableStateOf<String?>(null) }
+
+        AlertDialog(
+            onDismissRequest = { showUsernameDialog = false },
+            title = { Text(text = "تغییر نام کاربری") },
+            text = {
+                Column {
+                    Text(
+                        text = "برای امنیت، اول رمز فعلی را تأیید کنید؛ سپس نام کاربری جدید (حداقل ۳ حرف و بدون فاصله) را بنویسید.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = currentPassword,
+                        onValueChange = {
+                            currentPassword = it
+                            dialogError = null
+                        },
+                        label = { Text(text = "رمز فعلی") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newUsername,
+                        onValueChange = {
+                            newUsername = it
+                            dialogError = null
+                        },
+                        label = { Text(text = "نام کاربری جدید") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (dialogError != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = dialogError ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Text(
+                    text = "ذخیره",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clickable {
+                            when (authRepository.changeSelfUsername(currentPassword, newUsername)) {
+                                AuthRepository.SelfUsernameResult.SUCCESS -> {
+                                    showUsernameDialog = false
+                                    Toast.makeText(
+                                        context,
+                                        "نام کاربری با موفقیت عوض شد",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                AuthRepository.SelfUsernameResult.WRONG_PASSWORD ->
+                                    dialogError = "رمز فعلی درست نیست"
+                                AuthRepository.SelfUsernameResult.INVALID_USERNAME ->
+                                    dialogError = "نام کاربری باید حداقل ۳ حرف و بدون فاصله باشد"
+                                AuthRepository.SelfUsernameResult.USERNAME_TAKEN ->
+                                    dialogError = "این نام کاربری برای حساب دیگری گرفته شده است"
+                            }
+                        }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "انصراف",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clickable { showUsernameDialog = false }
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
@@ -536,72 +623,6 @@ private fun SettingsCard(
             )
             Spacer(modifier = Modifier.height(10.dp))
             content()
-        }
-    }
-}
-
-/**
- * ردیف تعویض پنل: آیکون رنگی + عنوان + توضیح + فلش
- */
-@Composable
-private fun RoleSwitchRow(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    accent: Color,
-    container: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = container,
-        border = BorderStroke(width = 1.dp, color = accent.copy(alpha = 0.3f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                onClickLabel = "رفتن به $title",
-                onClick = onClick
-            )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(accent),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = accent
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                    maxLines = 2
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.ChevronLeft,
-                contentDescription = null,
-                tint = accent
-            )
         }
     }
 }

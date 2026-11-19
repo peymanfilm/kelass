@@ -23,7 +23,6 @@ import com.example.classschedule.data.SettingsRepository
 import com.example.classschedule.data.SubjectGradeRepository
 import com.example.classschedule.ui.screens.LoginScreen
 import com.example.classschedule.ui.screens.MainScreen
-import com.example.classschedule.ui.screens.RoleSelectionScreen
 import com.example.classschedule.ui.theme.ClassScheduleTheme
 import com.example.classschedule.viewmodel.ScheduleViewModel
 import com.example.classschedule.viewmodel.ScheduleViewModelFactory
@@ -68,8 +67,8 @@ class MainActivity : ComponentActivity() {
 /**
  * کل برنامه در چیدمان راست‌به‌چپ نمایش داده می‌شود
  * دروازه‌ی احراز هویت: تا کاربر با نام کاربری و رمز عبور وارد نشده باشد، صفحه ورود باز می‌شود.
- * بعد از ورود: اگر هنوز پنلی انتخاب نشده باشد، صفحه انتخاب پنل (دانش‌آموز/معلم/مدیر/مالک) باز می‌شود
- * وگرنه پنل ذخیره‌شده‌ی کاربر باز می‌شود.
+ * هر حساب نقش خودش را دارد (student1 دانش‌آموز / teacher1 معلم / manager مدیر / owner مالک برند)
+ * و بعد از ورود، مستقیم پنل همان نقش باز می‌شود؛ خروج با دکمه‌ی «خروج از حساب» در نوار بالای پنل.
  */
 @Composable
 private fun RtlAppContent(viewModel: ScheduleViewModel, authRepository: AuthRepository) {
@@ -80,24 +79,28 @@ private fun RtlAppContent(viewModel: ScheduleViewModel, authRepository: AuthRepo
         ) {
             // وضعیت ورود به صورت زنده خوانده می‌شود؛ با خروج، صفحه ورود دوباره باز می‌شود
             val isLoggedIn by authRepository.isLoggedIn.collectAsState()
-            if (!isLoggedIn) {
-                // دروازه ورود — احراز هویت آفلاین
-                LoginScreen(
-                    onLogin = { username, password -> authRepository.login(username, password) }
-                )
-                return@Surface
-            }
-
-            // نقش انتخابی به صورت زنده خوانده می‌شود تا با تعویض پنل، صفحه عوض شود
             val settings by viewModel.settings.collectAsState()
-            if (settings.role == AppRoles.ROLE_NONE) {
-                // بار اول بعد از ورود: انتخاب پنل
-                RoleSelectionScreen(
-                    onSelectRole = { viewModel.setRole(it) }
-                )
-            } else {
-                // پنل انتخاب‌شده
+
+            if (isLoggedIn && settings.role != AppRoles.ROLE_NONE) {
+                // پنل نقشِ حساب واردشده — نقش با ورود تعیین شده است
                 MainScreen(viewModel = viewModel, role = settings.role, authRepository = authRepository)
+            } else {
+                // دروازه ورود — احراز هویت آفلاین؛ نقش از حساب انتخابی تعیین می‌شود
+                if (isLoggedIn) {
+                    // حالت خاص: وارد شده ولی نقشی ثبت نشده — دوباره ورود خواسته می‌شود
+                    authRepository.logout()
+                }
+                LoginScreen(
+                    authRepository = authRepository,
+                    onLogin = { username, password ->
+                        val role = authRepository.login(username, password)
+                        if (role != AppRoles.ROLE_NONE) {
+                            // پنلِ همان نقش باز می‌شود
+                            viewModel.setRole(role)
+                        }
+                        role
+                    }
+                )
             }
         }
     }

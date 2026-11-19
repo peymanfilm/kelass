@@ -24,11 +24,11 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,7 +78,7 @@ import kotlinx.coroutines.withContext
 /**
  * انواع تب‌ها — برای اینکه منطق دکمه‌ها و دسترسی‌ها بر اساس نقش درست کار کند
  */
-private enum class TabKind { SCHEDULE, HOMEWORK, PHOTOS, GRADES, SUMMARY, SETTINGS }
+private enum class TabKind { SCHEDULE, HOMEWORK, PHOTOS, GRADES, SUMMARY, ACCOUNTS, SETTINGS }
 
 private data class MainTab(val title: String, val icon: ImageVector, val kind: TabKind)
 
@@ -86,8 +86,8 @@ private data class MainTab(val title: String, val icon: ImageVector, val kind: T
  * تب‌های هر پنل:
  * - دانش‌آموز: برنامه هفتگی، یادآوری تکالیف، انجام تکالیف، کارنامه (فقط دیدن نمره)
  * - معلم: برنامه هفتگی (دیدن)، ثبت تکالیف، ثبت نمرات، گالری تکالیف (دیدن)
- * - مدیر: خلاصه و آمار، مدیریت کلاس‌ها و برنامه هفتگی، کارنامه (دیدن)، گالری تکالیف (دیدن)
- * - مالک برند MTM Kode: همه‌چیز + تنظیمات
+ * - مدیر: خلاصه و آمار، مدیریت کلاس‌ها و برنامه هفتگی، کارنامه (دیدن)، گالری تکالیف (دیدن) + مدیریت حساب‌ها
+ * - مالک برند MTM Kode: همه‌چیز + مدیریت حساب‌ها + تنظیمات
  */
 private val STUDENT_TABS = listOf(
     MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook, kind = TabKind.SCHEDULE),
@@ -107,7 +107,8 @@ private val MANAGER_TABS = listOf(
     MainTab(title = "خلاصه و آمار", icon = Icons.Default.Insights, kind = TabKind.SUMMARY),
     MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook, kind = TabKind.SCHEDULE),
     MainTab(title = "کارنامه", icon = Icons.Default.School, kind = TabKind.GRADES),
-    MainTab(title = "گالری تکالیف", icon = Icons.Default.AddAPhoto, kind = TabKind.PHOTOS)
+    MainTab(title = "گالری تکالیف", icon = Icons.Default.AddAPhoto, kind = TabKind.PHOTOS),
+    MainTab(title = "حساب‌ها", icon = Icons.Default.ManageAccounts, kind = TabKind.ACCOUNTS)
 )
 
 private val OWNER_TABS = listOf(
@@ -115,6 +116,7 @@ private val OWNER_TABS = listOf(
     MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment, kind = TabKind.HOMEWORK),
     MainTab(title = "گالری تکالیف", icon = Icons.Default.AddAPhoto, kind = TabKind.PHOTOS),
     MainTab(title = "کارنامه", icon = Icons.Default.School, kind = TabKind.GRADES),
+    MainTab(title = "حساب‌ها", icon = Icons.Default.ManageAccounts, kind = TabKind.ACCOUNTS),
     MainTab(title = "تنظیمات", icon = Icons.Default.Settings, kind = TabKind.SETTINGS)
 )
 
@@ -128,11 +130,14 @@ private fun tabsForRole(role: Int): List<MainTab> = when (role) {
 /**
  * صفحه اصلی برنامه «کلاس چی» با پنل نقش‌محور و نوار منو در پایین صفحه (سبک اپ‌های موبایل):
  *
+ * نقش هر کاربر با حساب ورودش تعیین می‌شود (student1 / teacher1 / manager / owner)
+ * و پنل همان نقش باز می‌شود؛ تغییر حساب با «خروج از حساب» و ورود دوباره انجام می‌شود.
+ *
  * دسترسی هر نقش (همه‌ی داده‌ها یکی است و آفلاین روی گوشی ذخیره می‌شود):
  * - دانش‌آموز: مدیریت کامل برنامه و تکالیف + بارگذاری عکس + فقط دیدن کارنامه
  * - معلم: دیدن برنامه + ثبت/ویرایش/حذف تکالیف + ثبت نمره و منفی/مثبت + دیدن گالری
- * - مدیر: مدیریت کلاس‌ها و برنامه هفتگی + بقیه فقط برای مشاهده + خلاصه و آمار کلی
- * - مالک برند MTM Kode: همه‌ی دسترسی‌ها + تب تنظیمات و نام مجموعه
+ * - مدیر: مدیریت کلاس‌ها و برنامه هفتگی + بقیه فقط برای مشاهده + خلاصه و آمار کلی + تغییر حساب دانش‌آموزان و معلمان
+ * - مالک برند MTM Kode: همه‌ی دسترسی‌ها + تغییر حساب مدیر و بقیه + تب تنظیمات و نام مجموعه
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,9 +169,6 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
     val dayPagerState = rememberPagerState(initialPage = WeekDays.todayIndex()) {
         WeekDays.names.size
     }
-
-    // صفحه انتخاب پنل (تعویض نقش از نوار بالا یا تب تنظیمات مالک)
-    var showRolePicker by remember { mutableStateOf(false) }
 
     // وضعیت دیالوگ‌های کلاس
     var showFormDialog by remember { mutableStateOf(false) }
@@ -280,18 +282,14 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
                 },
                 actions = {
                     // خروج از حساب — برگشت به دروازه‌ی ورود (داده‌ها دست‌نخورده می‌مانند)
-                    IconButton(onClick = { authRepository.logout() }) {
+                    // نقش پنل هم پاک می‌شود تا با حساب بعدی، پنلِ همان حساب باز شود
+                    IconButton(onClick = {
+                        viewModel.setRole(AppRoles.ROLE_NONE)
+                        authRepository.logout()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Logout,
                             contentDescription = "خروج از حساب",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                    // تعویض پنل — همه‌ی نقش‌ها می‌توانند پنل عوض کنند
-                    IconButton(onClick = { showRolePicker = true }) {
-                        Icon(
-                            imageVector = Icons.Default.SwapHoriz,
-                            contentDescription = "تعویض پنل",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
@@ -444,11 +442,14 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
                         homeworkList = allHomework,
                         subjectGrades = allSubjectGrades
                     )
+                    TabKind.ACCOUNTS -> AccountsContent(
+                        callerRole = role,
+                        authRepository = authRepository
+                    )
                     TabKind.SETTINGS -> OwnerSettingsContent(
                         isWeekView = isWeekView,
                         onToggleWeekView = { viewModel.setViewMode(if (it) VIEW_MODE_WEEK else VIEW_MODE_DAY) },
                         onOpenColorSettings = { showColorDialog = true },
-                        onSelectRole = { viewModel.setRole(it) },
                         schoolName = settings.schoolName,
                         onSetSchoolName = { viewModel.setSchoolName(it) },
                         authRepository = authRepository
@@ -459,22 +460,6 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
             // امضای برنامه — بالای نوار منوی پایین صفحه؛ نام برند برجسته می‌شود
             BrandSignature()
         }
-    }
-
-    // ---------- صفحه تعویض پنل ----------
-
-    // انتخاب پنل به صورت صفحه‌ی کامل روی پنل فعلی باز می‌شود؛ دکمه بازگشت دارد
-    if (showRolePicker) {
-        RoleSelectionScreen(
-            canGoBack = true,
-            onBack = { showRolePicker = false },
-            onSelectRole = { newRole ->
-                showRolePicker = false
-                if (newRole != role) {
-                    viewModel.setRole(newRole)
-                }
-            }
-        )
     }
 
     // ---------- دیالوگ‌های کلاس ----------
