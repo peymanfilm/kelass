@@ -75,15 +75,15 @@ private val ROLE_VISUALS = listOf(
     RoleVisual(
         role = AppRoles.ROLE_MANAGER,
         title = "مدیر",
-        description = "خلاصه و آمار کلی مدرسه، برنامه و کارنامه — فقط مشاهده",
+        description = "خلاصه و آمار کلی، مدیریت کلاس‌ها و برنامه هفتگی، کارنامه و گالری تکالیف",
         icon = Icons.Default.ManageAccounts,
         accent = Color(0xFF00695C),        // سبز تیره (تیل)
         container = Color(0xFFE0F2F1)
     ),
     RoleVisual(
         role = AppRoles.ROLE_OWNER,
-        title = "مالک",
-        description = "همه‌ی امکانات به‌همراه تنظیمات برنامه و تعویض پنل‌ها",
+        title = "مالک برند MTM Kode",
+        description = "همه‌ی امکانات به‌همراه تنظیمات برنامه، نام مجموعه و تعویض پنل‌ها",
         icon = Icons.Default.WorkspacePremium,
         accent = Color(0xFF6A1B9A),        // بنفش
         container = Color(0xFFF3E5F5)
@@ -231,7 +231,7 @@ fun RoleSelectionScreen(
 
         // امضای برنامه
         Text(
-            text = "کلاس چی محصولی از MTM Code",
+            text = "کلاس چی محصولی از MTM Kode",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,

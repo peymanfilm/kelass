@@ -8,14 +8,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * تنظیمات برنامه: نمای صفحه (تک‌روز یا کامل هفته)، رنگ تم انتخابی، رنگ دلخواه
- * و پنل انتخابی (نقش کاربر: دانش‌آموز / معلم / مدیر / مالک)
+ * تنظیمات برنامه: نمای صفحه (تک‌روز یا کامل هفته)، رنگ تم انتخابی، رنگ دلخواه،
+ * نام مجموعه (مدرسه) و پنل انتخابی (نقش کاربر: دانش‌آموز / معلم / مدیر / مالک برند MTM Kode)
  */
 data class AppSettings(
     val themeIndex: Int = 0,      // شماره تم رنگی (۰ تا ۲۳) — پیش‌فرض: بنفش
     val viewMode: Int = SettingsRepository.VIEW_MODE_WEEK, // پیش‌فرض: نمای کامل هفته
     val customColor: Int = -1,    // رنگ دلخواه (ARGB) — منفی یعنی بدون رنگ دلخواه
-    val role: Int = AppRoles.ROLE_NONE // پنل انتخابی؛ تا وقتی انتخاب نشده صفحه انتخاب نقش باز است
+    val role: Int = AppRoles.ROLE_NONE, // پنل انتخابی؛ تا وقتی انتخاب نشده صفحه انتخاب نقش باز است
+    val schoolName: String = ""  // نام مجموعه — فقط مالک برند می‌تواند تغییرش دهد و در نوار بالای همه‌ی پنل‌ها دیده می‌شود
 )
 
 /**
@@ -32,7 +33,8 @@ class SettingsRepository(context: Context) {
             themeIndex = prefs.getInt(KEY_THEME, 0),
             viewMode = prefs.getInt(KEY_VIEW_MODE, VIEW_MODE_WEEK),
             customColor = prefs.getInt(KEY_CUSTOM_COLOR, -1),
-            role = prefs.getInt(KEY_ROLE, AppRoles.ROLE_NONE)
+            role = prefs.getInt(KEY_ROLE, AppRoles.ROLE_NONE),
+            schoolName = prefs.getString(KEY_SCHOOL_NAME, "") ?: ""
         )
     )
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -67,12 +69,19 @@ class SettingsRepository(context: Context) {
         _settings.update { it.copy(role = role) }
     }
 
+    /** ذخیره نام مجموعه (مدرسه) — در نوار بالای همه‌ی پنل‌ها نمایش داده می‌شود */
+    fun setSchoolName(name: String) {
+        prefs.edit().putString(KEY_SCHOOL_NAME, name).apply()
+        _settings.update { it.copy(schoolName = name) }
+    }
+
     companion object {
         private const val PREFS_NAME = "app_settings"
         private const val KEY_THEME = "theme_index"
         private const val KEY_VIEW_MODE = "view_mode"
         private const val KEY_CUSTOM_COLOR = "custom_color"
         private const val KEY_ROLE = "selected_role"
+        private const val KEY_SCHOOL_NAME = "school_name"
 
         const val VIEW_MODE_DAY = 0   // نمایش تک‌روز با تب‌ها
         const val VIEW_MODE_WEEK = 1  // نمایش کامل همه روزهای هفته

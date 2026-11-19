@@ -89,10 +89,15 @@ class ScheduleViewModel(
         settingsRepository.setViewMode(mode)
     }
 
-    // تغییر پنل (نقش کاربر: دانش‌آموز / معلم / مدیر / مالک)
+    // تغییر پنل (نقش کاربر: دانش‌آموز / معلم / مدیر / مالک برند MTM Kode)
     // نقش روی گوشی ذخیره می‌شود و UI به صورت زنده عوض می‌شود
     fun setRole(role: Int) {
         settingsRepository.setRole(role)
+    }
+
+    // ذخیره نام مجموعه (مدرسه) — فقط از تب تنظیمات مالک برند MTM Kode
+    fun setSchoolName(name: String) {
+        settingsRepository.setSchoolName(name)
     }
 
     // افزودن کلاس جدید

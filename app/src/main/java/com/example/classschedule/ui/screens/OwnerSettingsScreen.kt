@@ -20,20 +20,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,18 +51,24 @@ import androidx.compose.ui.unit.dp
 import com.example.classschedule.data.AppRoles
 
 /**
- * محتوای تب «تنظیمات» در پنل مالک:
- * ۱) ظاهر برنامه: نمای هفته/تک‌روز + رنگ برنامه (دیالوگ رنگ از MainScreen باز می‌شود)
- * ۲) تعویض پنل: پرش سریع به پنل دانش‌آموز / معلم / مدیر
- * ۳) درباره برنامه: معرفی و نکته‌ی آفلاین بودن
+ * محتوای تب «تنظیمات» در پنل مالک برند MTM Kode:
+ * ۱) نام مجموعه: مدرسه‌ای که در نوار بالای همه‌ی پنل‌ها نمایش داده می‌شود
+ * ۲) ظاهر برنامه: نمای هفته/تک‌روز + رنگ برنامه (دیالوگ رنگ از MainScreen باز می‌شود)
+ * ۳) تعویض پنل: پرش سریع به پنل دانش‌آموز / معلم / مدیر
+ * ۴) درباره برنامه: معرفی و نکته‌ی آفلاین بودن
  */
 @Composable
 fun OwnerSettingsContent(
     isWeekView: Boolean,
     onToggleWeekView: (Boolean) -> Unit,
     onOpenColorSettings: () -> Unit,
-    onSelectRole: (Int) -> Unit
+    onSelectRole: (Int) -> Unit,
+    schoolName: String,
+    onSetSchoolName: (String) -> Unit
 ) {
+    // دیالوگ ویرایش نام مجموعه
+    var showSchoolNameDialog by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -66,6 +79,49 @@ fun OwnerSettingsContent(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // ---------- نام مجموعه ----------
+        item(key = "school-name-card") {
+            SettingsCard(title = "نام مجموعه") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            onClickLabel = "ویرایش نام مجموعه",
+                            onClick = { showSchoolNameDialog = true }
+                        )
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.School,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "نام مدرسه / مجموعه",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = schoolName.ifBlank { "هنوز ثبت نشده — لمس کنید تا نام را بنویسید" },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         // ---------- ظاهر برنامه ----------
         item(key = "appearance-card") {
             SettingsCard(title = "ظاهر برنامه") {
@@ -177,7 +233,7 @@ fun OwnerSettingsContent(
                 RoleSwitchRow(
                     icon = Icons.Default.ManageAccounts,
                     title = roleTitle(AppRoles.ROLE_MANAGER),
-                    description = "خلاصه و آمار کلی — فقط مشاهده",
+                    description = "خلاصه و آمار، مدیریت کلاس‌ها — بدون ثبت نمره",
                     accent = Color(0xFF00695C),
                     container = Color(0xFFE0F2F1),
                     onClick = { onSelectRole(AppRoles.ROLE_MANAGER) }
@@ -189,8 +245,8 @@ fun OwnerSettingsContent(
         item(key = "about-card") {
             SettingsCard(title = "درباره برنامه") {
                 AboutRow(label = "نام برنامه", value = "کلاس چی")
-                AboutRow(label = "نسخه", value = "۱٫۵")
-                AboutRow(label = "سازنده", value = "MTM Code")
+                AboutRow(label = "نسخه", value = "۱٫۶")
+                AboutRow(label = "سازنده و مالک برند", value = "MTM Kode")
                 AboutRow(label = "ذخیره‌سازی", value = "آفلاین روی خود گوشی")
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -202,6 +258,54 @@ fun OwnerSettingsContent(
                 )
             }
         }
+    }
+
+    // دیالوگ ویرایش نام مجموعه
+    if (showSchoolNameDialog) {
+        var draftName by remember { mutableStateOf(schoolName) }
+        AlertDialog(
+            onDismissRequest = { showSchoolNameDialog = false },
+            title = { Text(text = "نام مجموعه") },
+            text = {
+                Column {
+                    Text(
+                        text = "این نام در نوار بالای همه‌ی پنل‌ها نمایش داده می‌شود.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = draftName,
+                        onValueChange = { draftName = it },
+                        singleLine = true,
+                        placeholder = { Text(text = "مثلاً دبستان شهید مطهری") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Text(
+                    text = "ذخیره",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clickable {
+                            onSetSchoolName(draftName.trim())
+                            showSchoolNameDialog = false
+                        }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "انصراف",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clickable { showSchoolNameDialog = false }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            }
+        )
     }
 }
 

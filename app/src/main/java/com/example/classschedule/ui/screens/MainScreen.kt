@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -83,8 +84,8 @@ private data class MainTab(val title: String, val icon: ImageVector, val kind: T
  * تب‌های هر پنل:
  * - دانش‌آموز: برنامه هفتگی، یادآوری تکالیف، انجام تکالیف، کارنامه (فقط دیدن نمره)
  * - معلم: برنامه هفتگی (دیدن)، ثبت تکالیف، ثبت نمرات، گالری تکالیف (دیدن)
- * - مدیر: خلاصه و آمار، برنامه هفتگی (دیدن)، کارنامه (دیدن)، گالری تکالیف (دیدن)
- * - مالک: همه‌چیز + تنظیمات
+ * - مدیر: خلاصه و آمار، مدیریت کلاس‌ها و برنامه هفتگی، کارنامه (دیدن)، گالری تکالیف (دیدن)
+ * - مالک برند MTM Kode: همه‌چیز + تنظیمات
  */
 private val STUDENT_TABS = listOf(
     MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook, kind = TabKind.SCHEDULE),
@@ -128,8 +129,8 @@ private fun tabsForRole(role: Int): List<MainTab> = when (role) {
  * دسترسی هر نقش (همه‌ی داده‌ها یکی است و آفلاین روی گوشی ذخیره می‌شود):
  * - دانش‌آموز: مدیریت کامل برنامه و تکالیف + بارگذاری عکس + فقط دیدن کارنامه
  * - معلم: دیدن برنامه + ثبت/ویرایش/حذف تکالیف + ثبت نمره و منفی/مثبت + دیدن گالری
- * - مدیر: همه‌چیز فقط برای مشاهده + خلاصه و آمار کلی
- * - مالک: همه‌ی دسترسی‌ها + تب تنظیمات
+ * - مدیر: مدیریت کلاس‌ها و برنامه هفتگی + بقیه فقط برای مشاهده + خلاصه و آمار کلی
+ * - مالک برند MTM Kode: همه‌ی دسترسی‌ها + تب تنظیمات و نام مجموعه
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,8 +149,10 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int) {
     var selectedMainTab by remember(role) { mutableIntStateOf(0) }
     val activeTab = mainTabs[selectedMainTab]
 
-    // دسترسی‌های این نقش
-    val canEditSchedule = role == AppRoles.ROLE_STUDENT || role == AppRoles.ROLE_OWNER
+    // دسترسی‌های این نقش — هم‌تراز با پنل‌های وب‌سایت:
+    // مدیر هم مثل سایت می‌تواند کلاس‌ها را بسازد و ویرایش کند، ولی نمره ثبت نمی‌کند
+    val canEditSchedule = role == AppRoles.ROLE_STUDENT ||
+        role == AppRoles.ROLE_MANAGER || role == AppRoles.ROLE_OWNER
     val canEditHomework = role == AppRoles.ROLE_STUDENT ||
         role == AppRoles.ROLE_TEACHER || role == AppRoles.ROLE_OWNER
     val canEditGrades = role == AppRoles.ROLE_TEACHER || role == AppRoles.ROLE_OWNER
@@ -227,7 +230,21 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int) {
         },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(text = "کلاس چی — ${roleTitle(role)}") },
+                // نام مجموعه (اگر مالک برند ثبت کرده باشد) زیر عنوان پنل نمایش داده می‌شود
+                title = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "کلاس چی — ${roleTitle(role)}")
+                        if (settings.schoolName.isNotBlank()) {
+                            Text(
+                                text = settings.schoolName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
@@ -421,14 +438,16 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int) {
                         isWeekView = isWeekView,
                         onToggleWeekView = { viewModel.setViewMode(if (it) VIEW_MODE_WEEK else VIEW_MODE_DAY) },
                         onOpenColorSettings = { showColorDialog = true },
-                        onSelectRole = { viewModel.setRole(it) }
+                        onSelectRole = { viewModel.setRole(it) },
+                        schoolName = settings.schoolName,
+                        onSetSchoolName = { viewModel.setSchoolName(it) }
                     )
                 }
             }
 
             // امضای برنامه — بالای نوار منوی پایین صفحه
             Text(
-                text = "کلاس چی محصولی از MTM Code",
+                text = "کلاس چی محصولی از MTM Kode",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
