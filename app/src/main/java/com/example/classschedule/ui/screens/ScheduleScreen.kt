@@ -45,12 +45,15 @@ import kotlinx.coroutines.launch
  * دو حالت نمایش دارد:
  * ۱) نمای کامل هفته (پیش‌فرض): همه روزهای هفته یک‌جا و زیر هم
  * ۲) نمای تک‌روز: تب‌های روزهای هفته + سوایپ افقی
+ *
+ * readOnly: در پنل معلم و مدیر برنامه فقط قابل مشاهده است (بدون دکمه‌های ویرایش و حذف)
  */
 @Composable
 fun ScheduleContent(
     allClasses: List<ClassSchedule>,
     isWeekView: Boolean,
     dayPagerState: PagerState,
+    readOnly: Boolean = false,
     onEditClass: (ClassSchedule) -> Unit,
     onDeleteClass: (ClassSchedule) -> Unit,
     onAddDayClick: (Int) -> Unit
@@ -64,6 +67,7 @@ fun ScheduleContent(
         WeekScheduleView(
             allClasses = allClasses,
             weekDateLabels = weekDateLabels,
+            readOnly = readOnly,
             onEditClick = { onEditClass(it) },
             onDeleteClick = { onDeleteClass(it) },
             onAddDayClick = onAddDayClick
@@ -129,6 +133,7 @@ fun ScheduleContent(
                 DaySchedulePage(
                     dayIndex = page,
                     classes = dayClasses,
+                    readOnly = readOnly,
                     onEditClick = { onEditClass(it) },
                     onDeleteClick = { onDeleteClass(it) }
                 )
@@ -145,6 +150,7 @@ fun ScheduleContent(
 private fun WeekScheduleView(
     allClasses: List<ClassSchedule>,
     weekDateLabels: List<String>,
+    readOnly: Boolean,
     onEditClick: (ClassSchedule) -> Unit,
     onDeleteClick: (ClassSchedule) -> Unit,
     onAddDayClick: (Int) -> Unit
@@ -172,6 +178,7 @@ private fun WeekScheduleView(
                     jalaliDate = weekDateLabels[dayIndex],
                     isToday = dayIndex == today,
                     classCount = dayClasses.size,
+                    readOnly = readOnly,
                     onAddClick = { onAddDayClick(dayIndex) }
                 )
             }
@@ -184,6 +191,7 @@ private fun WeekScheduleView(
                 items(dayClasses, key = { it.id }) { classItem ->
                     ClassCard(
                         classSchedule = classItem,
+                        readOnly = readOnly,
                         onEditClick = { onEditClick(classItem) },
                         onDeleteClick = { onDeleteClick(classItem) }
                     )
@@ -196,6 +204,7 @@ private fun WeekScheduleView(
 /**
  * سربرگ هر روز در نمای هفته:
  * نام روز + تاریخ شمسی + برچسب «امروز» + تعداد کلاس + دکمه افزودن مخصوص همان روز
+ * در حالت فقط-مشاهده دکمه افزودن نشان داده نمی‌شود
  */
 @Composable
 private fun DayHeader(
@@ -203,6 +212,7 @@ private fun DayHeader(
     jalaliDate: String,
     isToday: Boolean,
     classCount: Int,
+    readOnly: Boolean,
     onAddClick: () -> Unit
 ) {
     Row(
@@ -249,17 +259,19 @@ private fun DayHeader(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
         )
-        // دکمه افزودن کلاس به این روز
-        IconButton(
-            onClick = onAddClick,
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "افزودن کلاس به $dayName",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
-            )
+        // دکمه افزودن کلاس به این روز — فقط در حالت قابل ویرایش
+        if (!readOnly) {
+            IconButton(
+                onClick = onAddClick,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "افزودن کلاس به $dayName",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
@@ -297,11 +309,12 @@ private fun EmptyDayRow() {
 private fun DaySchedulePage(
     dayIndex: Int,
     classes: List<ClassSchedule>,
+    readOnly: Boolean,
     onEditClick: (ClassSchedule) -> Unit,
     onDeleteClick: (ClassSchedule) -> Unit
 ) {
     if (classes.isEmpty()) {
-        EmptyState()
+        EmptyState(readOnly = readOnly)
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -326,6 +339,7 @@ private fun DaySchedulePage(
             items(classes, key = { it.id }) { classItem ->
                 ClassCard(
                     classSchedule = classItem,
+                    readOnly = readOnly,
                     onEditClick = { onEditClick(classItem) },
                     onDeleteClick = { onDeleteClick(classItem) }
                 )
@@ -336,9 +350,10 @@ private fun DaySchedulePage(
 
 /**
  * حالت خالی: وقتی برای روز انتخابی کلاسی ثبت نشده باشد
+ * در حالت فقط-مشاهده، راهنمای افزودن کلاس نشان داده نمی‌شود
  */
 @Composable
-private fun EmptyState() {
+private fun EmptyState(readOnly: Boolean = false) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -359,11 +374,13 @@ private fun EmptyState() {
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "برای افزودن کلاس جدید، روی دکمه + پایین صفحه ضربه بزنید.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
+        if (!readOnly) {
+            Text(
+                text = "برای افزودن کلاس جدید، روی دکمه + پایین صفحه ضربه بزنید.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }

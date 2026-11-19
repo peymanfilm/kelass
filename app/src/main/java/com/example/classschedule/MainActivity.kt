@@ -15,11 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.example.classschedule.data.AppDatabase
+import com.example.classschedule.data.AppRoles
 import com.example.classschedule.data.ClassRepository
 import com.example.classschedule.data.HomeworkRepository
 import com.example.classschedule.data.SettingsRepository
 import com.example.classschedule.data.SubjectGradeRepository
 import com.example.classschedule.ui.screens.MainScreen
+import com.example.classschedule.ui.screens.RoleSelectionScreen
 import com.example.classschedule.ui.theme.ClassScheduleTheme
 import com.example.classschedule.viewmodel.ScheduleViewModel
 import com.example.classschedule.viewmodel.ScheduleViewModelFactory
@@ -62,6 +64,8 @@ class MainActivity : ComponentActivity() {
 
 /**
  * کل برنامه در چیدمان راست‌به‌چپ نمایش داده می‌شود
+ * اگر هنوز پنلی انتخاب نشده باشد، صفحه انتخاب پنل (دانش‌آموز/معلم/مدیر/مالک) باز می‌شود
+ * وگرنه پنل ذخیره‌شده‌ی کاربر باز می‌شود.
  */
 @Composable
 private fun RtlAppContent(viewModel: ScheduleViewModel) {
@@ -70,7 +74,17 @@ private fun RtlAppContent(viewModel: ScheduleViewModel) {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            MainScreen(viewModel = viewModel)
+            // نقش انتخابی به صورت زنده خوانده می‌شود تا با تعویض پنل، صفحه عوض شود
+            val settings by viewModel.settings.collectAsState()
+            if (settings.role == AppRoles.ROLE_NONE) {
+                // بار اول: انتخاب پنل
+                RoleSelectionScreen(
+                    onSelectRole = { viewModel.setRole(it) }
+                )
+            } else {
+                // پنل انتخاب‌شده
+                MainScreen(viewModel = viewModel, role = settings.role)
+            }
         }
     }
 }

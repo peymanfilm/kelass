@@ -147,12 +147,14 @@ fun HomeworkAddPhotoTile(
 
 /**
  * نوار عکس‌های یک تکلیف در کارت: بندانگشتی‌ها + کاشی افزودن عکس
+ * showAddTile = false : کاشی افزودن عکس نشان داده نمی‌شود (حالت فقط-مشاهده)
  */
 @Composable
 fun HomeworkPhotoStrip(
     photos: List<String>,
     accent: Color,
     busy: Boolean = false,
+    showAddTile: Boolean = true,
     onAddClick: () -> Unit,
     onPhotoClick: (Int) -> Unit
 ) {
@@ -160,8 +162,10 @@ fun HomeworkPhotoStrip(
         itemsIndexed(photos, key = { _, name -> name }) { index, name ->
             HomeworkThumbnail(name = name, onClick = { onPhotoClick(index) })
         }
-        item(key = "add") {
-            HomeworkAddPhotoTile(onClick = onAddClick, accent = accent, busy = busy)
+        if (showAddTile) {
+            item(key = "add") {
+                HomeworkAddPhotoTile(onClick = onAddClick, accent = accent, busy = busy)
+            }
         }
     }
 }

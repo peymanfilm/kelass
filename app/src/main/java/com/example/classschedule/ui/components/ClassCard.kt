@@ -44,11 +44,13 @@ import com.example.classschedule.util.toPersianDigits
  * - لمس کوتاه: ویرایش
  * - لمس طولانی: حذف (با دیالوگ تأیید)
  * - آیکون سطل زباله: حذف / آیکون مداد: ویرایش
+ * در حالت فقط-مشاهده (پنل معلم و مدیر) دکمه‌های ویرایش و حذف نشان داده نمی‌شوند
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ClassCard(
     classSchedule: ClassSchedule,
+    readOnly: Boolean = false,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
@@ -57,9 +59,16 @@ fun ClassCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = onEditClick,
-                onLongClick = onDeleteClick
+            .then(
+                // در حالت فقط-مشاهده کارت کلیک‌پذیر نیست
+                if (readOnly) {
+                    Modifier
+                } else {
+                    Modifier.combinedClickable(
+                        onClick = onEditClick,
+                        onLongClick = onDeleteClick
+                    )
+                }
             ),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = scheme.container),
@@ -112,20 +121,22 @@ fun ClassCard(
                     )
                 }
 
-                // دکمه‌های ویرایش و حذف
-                IconButton(onClick = onEditClick) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "ویرایش کلاس",
-                        tint = scheme.accent
-                    )
-                }
-                IconButton(onClick = onDeleteClick) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "حذف کلاس",
-                        tint = scheme.accent
-                    )
+                // دکمه‌های ویرایش و حذف — فقط در حالت قابل ویرایش
+                if (!readOnly) {
+                    IconButton(onClick = onEditClick) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "ویرایش کلاس",
+                            tint = scheme.accent
+                        )
+                    }
+                    IconButton(onClick = onDeleteClick) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "حذف کلاس",
+                            tint = scheme.accent
+                        )
+                    }
                 }
             }
 

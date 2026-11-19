@@ -21,9 +21,12 @@ import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.classschedule.data.AppRoles
 import com.example.classschedule.data.ClassSchedule
 import com.example.classschedule.data.Homework
 import com.example.classschedule.data.HomeworkImageStore
@@ -69,29 +73,67 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * تعریف تب‌های اصلی برنامه — در آینده می‌توان تب‌های جدیدی به این فهرست افزود
+ * انواع تب‌ها — برای اینکه منطق دکمه‌ها و دسترسی‌ها بر اساس نقش درست کار کند
  */
-private data class MainTab(val title: String, val icon: ImageVector)
+private enum class TabKind { SCHEDULE, HOMEWORK, PHOTOS, GRADES, SUMMARY, SETTINGS }
 
-private val MAIN_TABS = listOf(
-    MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook),
-    MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment),
-    MainTab(title = "انجام تکالیف", icon = Icons.Default.AddAPhoto),
-    MainTab(title = "کارنامه", icon = Icons.Default.School)
-)
+private data class MainTab(val title: String, val icon: ImageVector, val kind: TabKind)
 
 /**
- * صفحه اصلی برنامه «کلاس چی» با نوار منو در پایین صفحه (سبک اپ‌های موبایل):
- * ۱) برنامه هفتگی: نمای کامل هفته یا تک‌روز (بر اساس انتخاب کاربر)
- * ۲) یادآوری تکالیف: فهرست تکالیف با تاریخ مهلت شمسی و وضعیت انجام
- * ۳) انجام تکالیف: گالری عکس‌های بارگذاری‌شده برای هر تکلیف
- * ۴) نمرات: کارنامه کامل — نمره مستمر و امتحان هر درس، منفی/مثبت دستی،
- *    معدل هر درس، معدل کل و کلید «عکس اجباری»
- * نوار پایین، نوار بالا، دکمه شناور افزودن، امضای برنامه و همه‌ی دیالوگ‌ها اینجا مدیریت می‌شوند.
+ * تب‌های هر پنل:
+ * - دانش‌آموز: برنامه هفتگی، یادآوری تکالیف، انجام تکالیف، کارنامه (فقط دیدن نمره)
+ * - معلم: برنامه هفتگی (دیدن)، ثبت تکالیف، ثبت نمرات، گالری تکالیف (دیدن)
+ * - مدیر: خلاصه و آمار، برنامه هفتگی (دیدن)، کارنامه (دیدن)، گالری تکالیف (دیدن)
+ * - مالک: همه‌چیز + تنظیمات
+ */
+private val STUDENT_TABS = listOf(
+    MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook, kind = TabKind.SCHEDULE),
+    MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment, kind = TabKind.HOMEWORK),
+    MainTab(title = "انجام تکالیف", icon = Icons.Default.AddAPhoto, kind = TabKind.PHOTOS),
+    MainTab(title = "کارنامه", icon = Icons.Default.School, kind = TabKind.GRADES)
+)
+
+private val TEACHER_TABS = listOf(
+    MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook, kind = TabKind.SCHEDULE),
+    MainTab(title = "ثبت تکالیف", icon = Icons.Default.Assignment, kind = TabKind.HOMEWORK),
+    MainTab(title = "ثبت نمرات", icon = Icons.Default.School, kind = TabKind.GRADES),
+    MainTab(title = "گالری تکالیف", icon = Icons.Default.AddAPhoto, kind = TabKind.PHOTOS)
+)
+
+private val MANAGER_TABS = listOf(
+    MainTab(title = "خلاصه و آمار", icon = Icons.Default.Insights, kind = TabKind.SUMMARY),
+    MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook, kind = TabKind.SCHEDULE),
+    MainTab(title = "کارنامه", icon = Icons.Default.School, kind = TabKind.GRADES),
+    MainTab(title = "گالری تکالیف", icon = Icons.Default.AddAPhoto, kind = TabKind.PHOTOS)
+)
+
+private val OWNER_TABS = listOf(
+    MainTab(title = "برنامه هفتگی", icon = Icons.Default.MenuBook, kind = TabKind.SCHEDULE),
+    MainTab(title = "یادآوری تکالیف", icon = Icons.Default.Assignment, kind = TabKind.HOMEWORK),
+    MainTab(title = "گالری تکالیف", icon = Icons.Default.AddAPhoto, kind = TabKind.PHOTOS),
+    MainTab(title = "کارنامه", icon = Icons.Default.School, kind = TabKind.GRADES),
+    MainTab(title = "تنظیمات", icon = Icons.Default.Settings, kind = TabKind.SETTINGS)
+)
+
+private fun tabsForRole(role: Int): List<MainTab> = when (role) {
+    AppRoles.ROLE_TEACHER -> TEACHER_TABS
+    AppRoles.ROLE_MANAGER -> MANAGER_TABS
+    AppRoles.ROLE_OWNER -> OWNER_TABS
+    else -> STUDENT_TABS
+}
+
+/**
+ * صفحه اصلی برنامه «کلاس چی» با پنل نقش‌محور و نوار منو در پایین صفحه (سبک اپ‌های موبایل):
+ *
+ * دسترسی هر نقش (همه‌ی داده‌ها یکی است و آفلاین روی گوشی ذخیره می‌شود):
+ * - دانش‌آموز: مدیریت کامل برنامه و تکالیف + بارگذاری عکس + فقط دیدن کارنامه
+ * - معلم: دیدن برنامه + ثبت/ویرایش/حذف تکالیف + ثبت نمره و منفی/مثبت + دیدن گالری
+ * - مدیر: همه‌چیز فقط برای مشاهده + خلاصه و آمار کلی
+ * - مالک: همه‌ی دسترسی‌ها + تب تنظیمات
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(viewModel: ScheduleViewModel) {
+fun MainScreen(viewModel: ScheduleViewModel, role: Int) {
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -101,13 +143,25 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     val settings by viewModel.settings.collectAsState()
     val isWeekView = settings.viewMode == VIEW_MODE_WEEK
 
-    // تب اصلی فعال: ۰ = برنامه هفتگی، ۱ = یادآوری تکالیف، ۲ = انجام تکالیف، ۳ = کارنامه
-    var selectedMainTab by remember { mutableIntStateOf(0) }
+    // تب‌های مخصوص این نقش + تب فعال (با عوض شدن نقش، به تب اول برمی‌گردد)
+    val mainTabs = remember(role) { tabsForRole(role) }
+    var selectedMainTab by remember(role) { mutableIntStateOf(0) }
+    val activeTab = mainTabs[selectedMainTab]
+
+    // دسترسی‌های این نقش
+    val canEditSchedule = role == AppRoles.ROLE_STUDENT || role == AppRoles.ROLE_OWNER
+    val canEditHomework = role == AppRoles.ROLE_STUDENT ||
+        role == AppRoles.ROLE_TEACHER || role == AppRoles.ROLE_OWNER
+    val canEditGrades = role == AppRoles.ROLE_TEACHER || role == AppRoles.ROLE_OWNER
+    val canAddPhotos = role == AppRoles.ROLE_STUDENT || role == AppRoles.ROLE_OWNER
 
     // صفحه‌گرد (Pager) روزهای هفته که با تب‌های روز هماهنگ است و روی «امروز» باز می‌شود
     val dayPagerState = rememberPagerState(initialPage = WeekDays.todayIndex()) {
         WeekDays.names.size
     }
+
+    // صفحه انتخاب پنل (تعویض نقش از نوار بالا یا تب تنظیمات مالک)
+    var showRolePicker by remember { mutableStateOf(false) }
 
     // وضعیت دیالوگ‌های کلاس
     var showFormDialog by remember { mutableStateOf(false) }
@@ -156,41 +210,31 @@ fun MainScreen(viewModel: ScheduleViewModel) {
     var showColorDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        // نوار منوی اصلی در پایین صفحه — مثل اپ‌های موبایل
+        // نوار منوی اصلی در پایین صفحه — تب‌های مخصوص پنل فعال
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                MAIN_TABS.forEachIndexed { index, tab ->
+                mainTabs.forEachIndexed { index, tab ->
                     NavigationBarItem(
                         selected = selectedMainTab == index,
                         onClick = { selectedMainTab = index },
-                        icon = {
-                            Icon(
-                                imageVector = tab.icon,
-                                contentDescription = tab.title
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = tab.title,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
+                        icon = { Icon(imageVector = tab.icon, contentDescription = tab.title) },
+                        label = { Text(text = tab.title, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelSmall) }
                     )
                 }
             }
         },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(text = "کلاس چی") },
+                title = { Text(text = "کلاس چی — ${roleTitle(role)}") },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 // دکمه تغییر نمای صفحه: فقط در تب برنامه هفتگی نمایش داده می‌شود
                 navigationIcon = {
-                    if (selectedMainTab == 0) {
+                    if (activeTab.kind == TabKind.SCHEDULE) {
                         IconButton(onClick = {
                             viewModel.setViewMode(
                                 if (isWeekView) VIEW_MODE_DAY else VIEW_MODE_WEEK
@@ -215,8 +259,16 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                         Spacer(modifier = Modifier.width(48.dp))
                     }
                 },
-                // دکمه شخصی‌سازی رنگ برنامه (مشترک در همه‌ی تب‌ها)
                 actions = {
+                    // تعویض پنل — همه‌ی نقش‌ها می‌توانند پنل عوض کنند
+                    IconButton(onClick = { showRolePicker = true }) {
+                        Icon(
+                            imageVector = Icons.Default.SwapHoriz,
+                            contentDescription = "تعویض پنل",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    // شخصی‌سازی رنگ برنامه (مشترک در همه‌ی تب‌ها)
                     IconButton(onClick = { showColorDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Palette,
@@ -227,55 +279,55 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                 }
             )
         },
+        // دکمه شناور فقط برای تب‌هایی نشان داده می‌شود که این نقش اجازه‌ی افزودن دارد
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    when (selectedMainTab) {
-                        0 -> {
-                            // افزودن کلاس: در نمای تک‌روز روی روز انتخابی، در نمای هفته روی امروز
-                            formDay = if (isWeekView) {
-                                WeekDays.todayIndex()
-                            } else {
-                                dayPagerState.currentPage
+            if (showFabFor(activeTab.kind, role)) {
+                FloatingActionButton(
+                    onClick = {
+                        when (activeTab.kind) {
+                            TabKind.SCHEDULE -> {
+                                // افزودن کلاس: در نمای تک‌روز روی روز انتخابی، در نمای هفته روی امروز
+                                formDay = if (isWeekView) {
+                                    WeekDays.todayIndex()
+                                } else {
+                                    dayPagerState.currentPage
+                                }
+                                editingClass = null
+                                showFormDialog = true
                             }
-                            editingClass = null
-                            showFormDialog = true
-                        }
-                        1 -> {
-                            // افزودن تکلیف جدید
-                            editingHomework = null
-                            showHomeworkDialog = true
-                        }
-                        2 -> {
-                            // بارگذاری عکس از تب گالری:
-                            // اگر تکلیفی نیست، فرم افزودن تکلیف باز می‌شود؛
-                            // وگرنه کاربر تکلیف مورد نظر را انتخاب می‌کند
-                            if (allHomework.isEmpty()) {
+                            TabKind.HOMEWORK -> {
                                 editingHomework = null
                                 showHomeworkDialog = true
-                            } else {
-                                showPhotoTargetDialog = true
+                            }
+                            TabKind.PHOTOS -> {
+                                // بارگذاری عکس از تب گالری:
+                                // اگر تکلیفی نیست، فرم افزودن تکلیف باز می‌شود؛
+                                // وگرنه کاربر تکلیف مورد نظر را انتخاب می‌کند
+                                if (allHomework.isEmpty()) {
+                                    editingHomework = null
+                                    showHomeworkDialog = true
+                                } else {
+                                    showPhotoTargetDialog = true
+                                }
+                            }
+                            else -> {
+                                // در تب‌های دیگر دکمه‌ای نشان داده نمی‌شود
                             }
                         }
-                        else -> {
-                            // تب نمرات: افزودن تکلیف جدید
-                            editingHomework = null
-                            showHomeworkDialog = true
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = when (activeTab.kind) {
+                            TabKind.SCHEDULE -> "افزودن کلاس جدید"
+                            TabKind.HOMEWORK -> "افزودن تکلیف جدید"
+                            TabKind.PHOTOS -> "بارگذاری عکس تکلیف"
+                            else -> "افزودن"
                         }
-                    }
-                },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = when (selectedMainTab) {
-                        0 -> "افزودن کلاس جدید"
-                        1 -> "افزودن تکلیف جدید"
-                        2 -> "بارگذاری عکس تکلیف"
-                        else -> "افزودن تکلیف جدید"
-                    }
-                )
+                    )
+                }
             }
         }
     ) { innerPadding ->
@@ -293,11 +345,12 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                 },
                 modifier = Modifier.weight(1f)
             ) { page ->
-                when (page) {
-                    0 -> ScheduleContent(
+                when (mainTabs[page].kind) {
+                    TabKind.SCHEDULE -> ScheduleContent(
                         allClasses = allClasses,
                         isWeekView = isWeekView,
                         dayPagerState = dayPagerState,
+                        readOnly = !canEditSchedule,
                         onEditClass = { editingClass = it },
                         onDeleteClass = { deletingClass = it },
                         onAddDayClick = { day ->
@@ -306,7 +359,7 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                             showFormDialog = true
                         }
                     )
-                    1 -> HomeworkContent(
+                    TabKind.HOMEWORK -> HomeworkContent(
                         homeworkList = allHomework,
                         onEditHomework = { editingHomework = it },
                         onDeleteHomework = { deletingHomework = it },
@@ -324,16 +377,19 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                             ).show()
                         }
                     )
-                    2 -> HomeworkPhotosContent(
+                    TabKind.PHOTOS -> HomeworkPhotosContent(
                         homeworkList = allHomework,
+                        readOnly = !canAddPhotos,
                         onAddPhotos = { launchPhotoPickerFor(it) },
                         onOpenPhoto = { homework, index ->
                             photoViewerTarget = homework to index
                         }
                     )
-                    else -> GradesContent(
+                    TabKind.GRADES -> GradesContent(
                         subjectGrades = allSubjectGrades,
                         homeworkList = allHomework,
+                        readOnly = !canEditGrades,
+                        allowPhotoUpload = canAddPhotos,
                         onSetContinuousGrade = { name, grade ->
                             viewModel.setContinuousGrade(name, grade)
                         },
@@ -356,6 +412,17 @@ fun MainScreen(viewModel: ScheduleViewModel) {
                             photoViewerTarget = homework to index
                         }
                     )
+                    TabKind.SUMMARY -> ManagerSummaryContent(
+                        allClasses = allClasses,
+                        homeworkList = allHomework,
+                        subjectGrades = allSubjectGrades
+                    )
+                    TabKind.SETTINGS -> OwnerSettingsContent(
+                        isWeekView = isWeekView,
+                        onToggleWeekView = { viewModel.setViewMode(if (it) VIEW_MODE_WEEK else VIEW_MODE_DAY) },
+                        onOpenColorSettings = { showColorDialog = true },
+                        onSelectRole = { viewModel.setRole(it) }
+                    )
                 }
             }
 
@@ -372,10 +439,26 @@ fun MainScreen(viewModel: ScheduleViewModel) {
         }
     }
 
+    // ---------- صفحه تعویض پنل ----------
+
+    // انتخاب پنل به صورت صفحه‌ی کامل روی پنل فعلی باز می‌شود؛ دکمه بازگشت دارد
+    if (showRolePicker) {
+        RoleSelectionScreen(
+            canGoBack = true,
+            onBack = { showRolePicker = false },
+            onSelectRole = { newRole ->
+                showRolePicker = false
+                if (newRole != role) {
+                    viewModel.setRole(newRole)
+                }
+            }
+        )
+    }
+
     // ---------- دیالوگ‌های کلاس ----------
 
-    // دیالوگ افزودن / ویرایش کلاس
-    if (showFormDialog) {
+    // دیالوگ افزودن / ویرایش کلاس — فقط نقش‌های با اجازه‌ی ویرایش می‌توانند بازش کنند
+    if (showFormDialog && canEditSchedule) {
         ClassFormDialog(
             editingClass = editingClass,
             initialDay = formDay,
@@ -427,8 +510,8 @@ fun MainScreen(viewModel: ScheduleViewModel) {
 
     // ---------- دیالوگ‌های تکلیف ----------
 
-    // دیالوگ افزودن / ویرایش تکلیف
-    if (showHomeworkDialog) {
+    // دیالوگ افزودن / ویرایش تکلیف — فقط نقش‌های با اجازه‌ی ویرایش تکلیف
+    if (showHomeworkDialog && canEditHomework) {
         HomeworkFormDialog(
             editingHomework = editingHomework,
             subjectSuggestions = allClasses
@@ -533,4 +616,18 @@ fun MainScreen(viewModel: ScheduleViewModel) {
             onDismiss = { showColorDialog = false }
         )
     }
+}
+
+/**
+ * آیا برای این تب و این نقش، دکمه شناور «افزودن» نشان داده شود؟
+ */
+private fun showFabFor(kind: TabKind, role: Int): Boolean = when (kind) {
+    TabKind.SCHEDULE ->
+        role == AppRoles.ROLE_STUDENT || role == AppRoles.ROLE_OWNER
+    TabKind.HOMEWORK ->
+        role == AppRoles.ROLE_STUDENT ||
+        role == AppRoles.ROLE_TEACHER || role == AppRoles.ROLE_OWNER
+    TabKind.PHOTOS ->
+        role == AppRoles.ROLE_STUDENT || role == AppRoles.ROLE_OWNER
+    else -> false
 }

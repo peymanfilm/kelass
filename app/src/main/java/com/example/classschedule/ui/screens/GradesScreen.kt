@@ -149,11 +149,16 @@ private fun calcSubject(row: SubjectGrade, autoNegatives: Int): SubjectCalc {
  *    نمره نهایی مستمر، معدل درس و کلید «عکس اجباری»
  * ۳) جزییات منفی‌ها: تکالیفِ مهلت‌گذشته‌ی بدون عکس با دکمه‌ی بارگذاری عکس برای جبران
  * ۴) فهرست تحویل‌شده‌ها: تکالیف دارای عکس با بندانگشتی و نمایشگر تمام‌صفحه
+ *
+ * readOnly:        فقط مشاهده (پنل دانش‌آموز و مدیر) — بدون ویرایش نمره و درس
+ * allowPhotoUpload: بارگذاری عکس جبران (دانش‌آموز و مالک) — برای معلم و مدیر خاموش
  */
 @Composable
 fun GradesContent(
     subjectGrades: List<SubjectGrade>,
     homeworkList: List<Homework>,
+    readOnly: Boolean = false,
+    allowPhotoUpload: Boolean = true,
     onSetContinuousGrade: (String, Float?) -> Unit,
     onSetExamGrade: (String, Float?) -> Unit,
     onAdjustManualNegative: (String, Int) -> Unit,
@@ -225,7 +230,10 @@ fun GradesContent(
 
     // کارنامه کاملا خالی: نه درسی هست و نه تکلیفی
     if (subjectGrades.isEmpty() && homeworkList.isEmpty()) {
-        GradesEmptyState(onAddSubject = { showAddSubjectDialog = true })
+        GradesEmptyState(
+            readOnly = readOnly,
+            onAddSubject = { showAddSubjectDialog = true }
+        )
         return
     }
 
@@ -239,6 +247,26 @@ fun GradesContent(
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // ---------- یادآوری حالت فقط-مشاهده ----------
+        if (readOnly) {
+            item(key = "readonly-note") {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = "کارنامه فقط برای مشاهده است؛ نمره‌ها را معلم ثبت می‌کند.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+
         // ---------- کارت خلاصه‌ی کارنامه ----------
         item(key = "report-header") {
             ReportHeaderCard(
@@ -269,31 +297,33 @@ fun GradesContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    modifier = Modifier.clickable(
-                        onClickLabel = "افزودن درس به کارنامه",
-                        onClick = { showAddSubjectDialog = true }
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                if (!readOnly) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        modifier = Modifier.clickable(
+                            onClickLabel = "افزودن درس به کارنامه",
+                            onClick = { showAddSubjectDialog = true }
+                        )
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "افزودن درس",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "افزودن درس",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
@@ -304,6 +334,7 @@ fun GradesContent(
             SubjectReportCard(
                 row = row,
                 autoNegatives = autoNegativesBySubject[row.name] ?: 0,
+                readOnly = readOnly,
                 onEditGrades = { gradeEditTarget = row },
                 onAdjustNegative = { delta -> onAdjustManualNegative(row.name, delta) },
                 onAdjustPositive = { delta -> onAdjustManualPositive(row.name, delta) },
@@ -325,6 +356,7 @@ fun GradesContent(
                 NegativeGradeCard(
                     homework = homework,
                     today = today,
+                    allowPhotoUpload = allowPhotoUpload,
                     onAddPhotos = { onAddPhotos(homework) }
                 )
             }
@@ -342,6 +374,7 @@ fun GradesContent(
             items(delivered, key = { "del-${it.id}" }) { homework ->
                 DeliveredGradeCard(
                     homework = homework,
+                    allowPhotoUpload = allowPhotoUpload,
                     onOpenPhoto = { index -> onOpenPhoto(homework, index) },
                     onAddPhotos = { onAddPhotos(homework) }
                 )
@@ -503,11 +536,13 @@ private fun ReportStat(
  * کارت کارنامه یک درس:
  * نام درس + دکمه حذف | نمره مستمر و نمره امتحان (قابل ویرایش) |
  * منفی و مثبت با دکمه‌های + و − | نمره نهایی مستمر (با مثبت‌های اضافه) | معدل درس | کلید «عکس اجباری»
+ * در حالت فقط-مشاهده دکمه‌های ویرایش، حذف و کلیدها نشان داده نمی‌شوند و فقط مقادیر دیده می‌شوند
  */
 @Composable
 private fun SubjectReportCard(
     row: SubjectGrade,
     autoNegatives: Int,
+    readOnly: Boolean = false,
     onEditGrades: () -> Unit,
     onAdjustNegative: (Int) -> Unit,
     onAdjustPositive: (Int) -> Unit,
@@ -531,7 +566,7 @@ private fun SubjectReportCard(
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
-            // نام درس + دکمه حذف درس
+            // نام درس + دکمه حذف درس (فقط در حالت قابل ویرایش)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = row.name,
@@ -541,16 +576,18 @@ private fun SubjectReportCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "حذف درس «${row.name}» از کارنامه",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
+                if (!readOnly) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "حذف درس «${row.name}» از کارنامه",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -577,17 +614,19 @@ private fun SubjectReportCard(
                                 MaterialTheme.colorScheme.onSurface
                             }
                         )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        IconButton(
-                            onClick = onEditGrades,
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "ویرایش نمره‌های «${row.name}»",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
+                        if (!readOnly) {
+                            Spacer(modifier = Modifier.width(2.dp))
+                            IconButton(
+                                onClick = onEditGrades,
+                                modifier = Modifier.size(30.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "ویرایش نمره‌های «${row.name}»",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -611,17 +650,19 @@ private fun SubjectReportCard(
                                 MaterialTheme.colorScheme.onSurface
                             }
                         )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        IconButton(
-                            onClick = onEditGrades,
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "ویرایش نمره امتحان «${row.name}»",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
+                        if (!readOnly) {
+                            Spacer(modifier = Modifier.width(2.dp))
+                            IconButton(
+                                onClick = onEditGrades,
+                                modifier = Modifier.size(30.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "ویرایش نمره امتحان «${row.name}»",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -629,39 +670,70 @@ private fun SubjectReportCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // منفی و مثبت: شمارنده با دکمه‌های کم و زیاد — معلم دستی ثبت می‌کند
+            // منفی و مثبت: در حالت قابل ویرایش شمارنده با دکمه + و − (ثبت دستی معلم)
+            // در حالت فقط-مشاهده فقط مقدارها بدون دکمه نشان داده می‌شود
             Row(verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
-                    CounterStepper(
-                        label = "منفی",
-                        count = totalNegatives,
-                        countColor = if (totalNegatives > 0) {
-                            NegativeAccent
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                        subLabel = if (autoNegatives > 0) {
-                            "خودکار از تکالیف: ${autoNegatives.toString().toPersianDigits()}"
-                        } else {
-                            "هر منفی: −۰٫۲۵"
-                        },
-                        onDecrement = { onAdjustNegative(-1) },
-                        onIncrement = { onAdjustNegative(1) }
-                    )
+                    if (readOnly) {
+                        ReadOnlyCounter(
+                            label = "منفی",
+                            count = totalNegatives,
+                            countColor = if (totalNegatives > 0) {
+                                NegativeAccent
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            subLabel = if (autoNegatives > 0) {
+                                "خودکار از تکالیف: ${autoNegatives.toString().toPersianDigits()}"
+                            } else {
+                                "هر منفی: −۰٫۲۵"
+                            }
+                        )
+                    } else {
+                        CounterStepper(
+                            label = "منفی",
+                            count = totalNegatives,
+                            countColor = if (totalNegatives > 0) {
+                                NegativeAccent
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            subLabel = if (autoNegatives > 0) {
+                                "خودکار از تکالیف: ${autoNegatives.toString().toPersianDigits()}"
+                            } else {
+                                "هر منفی: −۰٫۲۵"
+                            },
+                            onDecrement = { onAdjustNegative(-1) },
+                            onIncrement = { onAdjustNegative(1) }
+                        )
+                    }
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    CounterStepper(
-                        label = "مثبت",
-                        count = row.manualPositives,
-                        countColor = if (row.manualPositives > 0) {
-                            DeliveredAccent
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                        subLabel = "هر مثبت: +۰٫۲۵",
-                        onDecrement = { onAdjustPositive(-1) },
-                        onIncrement = { onAdjustPositive(1) }
-                    )
+                    if (readOnly) {
+                        ReadOnlyCounter(
+                            label = "مثبت",
+                            count = row.manualPositives,
+                            countColor = if (row.manualPositives > 0) {
+                                DeliveredAccent
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            subLabel = "هر مثبت: +۰٫۲۵"
+                        )
+                    } else {
+                        CounterStepper(
+                            label = "مثبت",
+                            count = row.manualPositives,
+                            countColor = if (row.manualPositives > 0) {
+                                DeliveredAccent
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            subLabel = "هر مثبت: +۰٫۲۵",
+                            onDecrement = { onAdjustPositive(-1) },
+                            onIncrement = { onAdjustPositive(1) }
+                        )
+                    }
                 }
             }
 
@@ -739,6 +811,7 @@ private fun SubjectReportCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             // کلید «عکس اجباری» — معلم تعیین می‌کند بی‌عکسی در این درس منفی بگیرد یا نه
+            // در حالت فقط-مشاهده فقط وضعیت آن نشان داده می‌شود
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -756,12 +829,57 @@ private fun SubjectReportCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
-                    checked = row.photoRequired,
-                    onCheckedChange = { onTogglePhotoRequired() }
-                )
+                if (!readOnly) {
+                    Switch(
+                        checked = row.photoRequired,
+                        onCheckedChange = { onTogglePhotoRequired() }
+                    )
+                } else {
+                    Text(
+                        text = if (row.photoRequired) "روشن" else "خاموش",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (row.photoRequired) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
             }
         }
+    }
+}
+
+/**
+ * شمارنده‌ی فقط-مشاهده‌ی منفی/مثبت — بدون دکمه (برای پنل دانش‌آموز و مدیر)
+ */
+@Composable
+private fun ReadOnlyCounter(
+    label: String,
+    count: Int,
+    countColor: Color,
+    subLabel: String
+) {
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = count.toString().toPersianDigits(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = countColor
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = subLabel,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+        )
     }
 }
 
@@ -1006,11 +1124,13 @@ private fun GradesSectionHeader(
 /**
  * کارت یک منفی: عنوان تکلیف، درس، مهلت گذشته و دکمه‌ی بارگذاری عکس
  * بارگذاری عکس باعث می‌شود تکلیف از فهرست منفی‌ها خارج و تحویل‌شده شود.
+ * در حالت بدون اجازه‌ی بارگذاری عکس (معلم/مدیر)، دکمه‌ی بارگذاری نشان داده نمی‌شود.
  */
 @Composable
 private fun NegativeGradeCard(
     homework: Homework,
     today: JalaliDate,
+    allowPhotoUpload: Boolean = true,
     onAddPhotos: () -> Unit
 ) {
     val overdueDays = -daysBetween(today, homework.dueJalali)
@@ -1107,32 +1227,35 @@ private fun NegativeGradeCard(
                 }
 
                 // دکمه‌ی بارگذاری عکس — رفع منفی با بارگذاری عکس تکلیف انجام‌شده
-                Spacer(modifier = Modifier.height(10.dp))
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = NegativeAccent,
-                    modifier = Modifier.clickable(
-                        onClickLabel = "بارگذاری عکس برای رفع منفی",
-                        onClick = onAddPhotos
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // فقط برای نقش‌هایی که اجازه‌ی بارگذاری عکس دارند (دانش‌آموز و مالک)
+                if (allowPhotoUpload) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = NegativeAccent,
+                        modifier = Modifier.clickable(
+                            onClickLabel = "بارگذاری عکس برای رفع منفی",
+                            onClick = onAddPhotos
+                        )
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AddAPhoto,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "بارگذاری عکس",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddAPhoto,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "بارگذاری عکس",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
@@ -1147,6 +1270,7 @@ private fun NegativeGradeCard(
 @Composable
 private fun DeliveredGradeCard(
     homework: Homework,
+    allowPhotoUpload: Boolean = true,
     onOpenPhoto: (Int) -> Unit,
     onAddPhotos: () -> Unit
 ) {
@@ -1243,11 +1367,12 @@ private fun DeliveredGradeCard(
                     }
                 }
 
-                // بندانگشتی عکس‌های تحویل‌شده + کاشی افزودن عکس بیشتر
+                // بندانگشتی عکس‌های تحویل‌شده + کاشی افزودن عکس بیشتر (فقط با اجازه)
                 Spacer(modifier = Modifier.height(8.dp))
                 HomeworkPhotoStrip(
                     photos = homework.imageList,
                     accent = scheme.accent,
+                    showAddTile = allowPhotoUpload,
                     onAddClick = onAddPhotos,
                     onPhotoClick = onOpenPhoto
                 )
@@ -1278,9 +1403,13 @@ private fun GradeInfoRow(
 
 /**
  * حالت خالی: وقتی نه درسی در کارنامه هست و نه تکلیفی ثبت شده است
+ * در حالت فقط-مشاهده، دکمه افزودن درس نشان داده نمی‌شود
  */
 @Composable
-private fun GradesEmptyState(onAddSubject: () -> Unit) {
+private fun GradesEmptyState(
+    readOnly: Boolean = false,
+    onAddSubject: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1309,20 +1438,22 @@ private fun GradesEmptyState(onAddSubject: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onAddSubject,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = "افزودن درس")
+        if (!readOnly) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onAddSubject,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "افزودن درس")
+            }
         }
     }
 }

@@ -46,10 +46,12 @@ import com.example.classschedule.util.toPersianDigits
  * محتوای تب «انجام تکالیف» — گالری عکس‌های تکالیف انجام‌شده
  * عکس‌های هر تکلیف زیر نام آن نشان داده می‌شود و با لمس، تمام‌صفحه باز می‌شود.
  * دکمه‌ی افزودن عکس در سرصفحه‌ی هر تکلیف و کاشی افزودن در انتهای ردیف عکس‌ها هست.
+ * در حالت فقط-مشاهده (پنل معلم و مدیر) دکمه‌های افزودن عکس نشان داده نمی‌شوند.
  */
 @Composable
 fun HomeworkPhotosContent(
     homeworkList: List<Homework>,
+    readOnly: Boolean = false,
     onAddPhotos: (Homework) -> Unit,
     onOpenPhoto: (Homework, Int) -> Unit
 ) {
@@ -115,15 +117,17 @@ fun HomeworkPhotosContent(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    IconButton(
-                        onClick = { onAddPhotos(homework) }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AddAPhoto,
-                            contentDescription = "افزودن عکس برای «${homework.title}»",
-                            tint = scheme.accent,
-                            modifier = Modifier.size(22.dp)
-                        )
+                    if (!readOnly) {
+                        IconButton(
+                            onClick = { onAddPhotos(homework) }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddAPhoto,
+                                contentDescription = "افزودن عکس برای «${homework.title}»",
+                                tint = scheme.accent,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -156,11 +160,13 @@ fun HomeworkPhotosContent(
                                     onClick = { onOpenPhoto(homework, index) }
                                 )
                             }
-                            item(key = "add-${homework.id}") {
-                                HomeworkAddPhotoTile(
-                                    onClick = { onAddPhotos(homework) },
-                                    accent = scheme.accent
-                                )
+                            if (!readOnly) {
+                                item(key = "add-${homework.id}") {
+                                    HomeworkAddPhotoTile(
+                                        onClick = { onAddPhotos(homework) },
+                                        accent = scheme.accent
+                                    )
+                                }
                             }
                         }
                     }

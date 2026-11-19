@@ -8,12 +8,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * تنظیمات برنامه: نمای صفحه (تک‌روز یا کامل هفته)، رنگ تم انتخابی و رنگ دلخواه
+ * تنظیمات برنامه: نمای صفحه (تک‌روز یا کامل هفته)، رنگ تم انتخابی، رنگ دلخواه
+ * و پنل انتخابی (نقش کاربر: دانش‌آموز / معلم / مدیر / مالک)
  */
 data class AppSettings(
     val themeIndex: Int = 0,      // شماره تم رنگی (۰ تا ۲۳) — پیش‌فرض: بنفش
     val viewMode: Int = SettingsRepository.VIEW_MODE_WEEK, // پیش‌فرض: نمای کامل هفته
-    val customColor: Int = -1     // رنگ دلخواه (ARGB) — منفی یعنی بدون رنگ دلخواه
+    val customColor: Int = -1,    // رنگ دلخواه (ARGB) — منفی یعنی بدون رنگ دلخواه
+    val role: Int = AppRoles.ROLE_NONE // پنل انتخابی؛ تا وقتی انتخاب نشده صفحه انتخاب نقش باز است
 )
 
 /**
@@ -29,7 +31,8 @@ class SettingsRepository(context: Context) {
         AppSettings(
             themeIndex = prefs.getInt(KEY_THEME, 0),
             viewMode = prefs.getInt(KEY_VIEW_MODE, VIEW_MODE_WEEK),
-            customColor = prefs.getInt(KEY_CUSTOM_COLOR, -1)
+            customColor = prefs.getInt(KEY_CUSTOM_COLOR, -1),
+            role = prefs.getInt(KEY_ROLE, AppRoles.ROLE_NONE)
         )
     )
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -58,11 +61,18 @@ class SettingsRepository(context: Context) {
         _settings.update { it.copy(viewMode = mode) }
     }
 
+    /** ذخیره پنل انتخابی (نقش کاربر) — با باز شدن دوباره برنامه همان پنل باز می‌شود */
+    fun setRole(role: Int) {
+        prefs.edit().putInt(KEY_ROLE, role).apply()
+        _settings.update { it.copy(role = role) }
+    }
+
     companion object {
         private const val PREFS_NAME = "app_settings"
         private const val KEY_THEME = "theme_index"
         private const val KEY_VIEW_MODE = "view_mode"
         private const val KEY_CUSTOM_COLOR = "custom_color"
+        private const val KEY_ROLE = "selected_role"
 
         const val VIEW_MODE_DAY = 0   // نمایش تک‌روز با تب‌ها
         const val VIEW_MODE_WEEK = 1  // نمایش کامل همه روزهای هفته
