@@ -445,16 +445,8 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int) {
                 }
             }
 
-            // امضای برنامه — بالای نوار منوی پایین صفحه
-            Text(
-                text = "کلاس چی محصولی از MTM Kode",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-            )
+            // امضای برنامه — بالای نوار منوی پایین صفحه؛ نام برند برجسته می‌شود
+            BrandSignature()
         }
     }
 

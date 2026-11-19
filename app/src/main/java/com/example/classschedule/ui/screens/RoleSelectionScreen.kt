@@ -94,7 +94,7 @@ private val ROLE_VISUALS = listOf(
 fun roleTitle(role: Int): String = when (role) {
     AppRoles.ROLE_TEACHER -> "پنل معلم"
     AppRoles.ROLE_MANAGER -> "پنل مدیر"
-    AppRoles.ROLE_OWNER -> "پنل مالک"
+    AppRoles.ROLE_OWNER -> "پنل مالک برند"
     else -> "پنل دانش‌آموز"
 }
 
@@ -229,16 +229,8 @@ fun RoleSelectionScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // امضای برنامه
-        Text(
-            text = "کلاس چی محصولی از MTM Kode",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp)
-        )
+        // امضای برنامه — نام برند برجسته می‌شود
+        BrandSignature(verticalPadding = 14.dp)
     }
 }
 
