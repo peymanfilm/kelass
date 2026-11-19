@@ -16,10 +16,12 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.example.classschedule.data.AppDatabase
 import com.example.classschedule.data.AppRoles
+import com.example.classschedule.data.AuthRepository
 import com.example.classschedule.data.ClassRepository
 import com.example.classschedule.data.HomeworkRepository
 import com.example.classschedule.data.SettingsRepository
 import com.example.classschedule.data.SubjectGradeRepository
+import com.example.classschedule.ui.screens.LoginScreen
 import com.example.classschedule.ui.screens.MainScreen
 import com.example.classschedule.ui.screens.RoleSelectionScreen
 import com.example.classschedule.ui.theme.ClassScheduleTheme
@@ -38,6 +40,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val settingsRepository = SettingsRepository(applicationContext)
+        val authRepository = AuthRepository(applicationContext)
         val database = AppDatabase.getDatabase(applicationContext)
 
         val viewModel: ScheduleViewModel by viewModels {
@@ -56,7 +59,7 @@ class MainActivity : ComponentActivity() {
                 themeIndex = settings.themeIndex,
                 customColor = settings.customColor
             ) {
-                RtlAppContent(viewModel = viewModel)
+                RtlAppContent(viewModel = viewModel, authRepository = authRepository)
             }
         }
     }
@@ -64,26 +67,37 @@ class MainActivity : ComponentActivity() {
 
 /**
  * کل برنامه در چیدمان راست‌به‌چپ نمایش داده می‌شود
- * اگر هنوز پنلی انتخاب نشده باشد، صفحه انتخاب پنل (دانش‌آموز/معلم/مدیر/مالک) باز می‌شود
+ * دروازه‌ی احراز هویت: تا کاربر با نام کاربری و رمز عبور وارد نشده باشد، صفحه ورود باز می‌شود.
+ * بعد از ورود: اگر هنوز پنلی انتخاب نشده باشد، صفحه انتخاب پنل (دانش‌آموز/معلم/مدیر/مالک) باز می‌شود
  * وگرنه پنل ذخیره‌شده‌ی کاربر باز می‌شود.
  */
 @Composable
-private fun RtlAppContent(viewModel: ScheduleViewModel) {
+private fun RtlAppContent(viewModel: ScheduleViewModel, authRepository: AuthRepository) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
+            // وضعیت ورود به صورت زنده خوانده می‌شود؛ با خروج، صفحه ورود دوباره باز می‌شود
+            val isLoggedIn by authRepository.isLoggedIn.collectAsState()
+            if (!isLoggedIn) {
+                // دروازه ورود — احراز هویت آفلاین
+                LoginScreen(
+                    onLogin = { username, password -> authRepository.login(username, password) }
+                )
+                return@Surface
+            }
+
             // نقش انتخابی به صورت زنده خوانده می‌شود تا با تعویض پنل، صفحه عوض شود
             val settings by viewModel.settings.collectAsState()
             if (settings.role == AppRoles.ROLE_NONE) {
-                // بار اول: انتخاب پنل
+                // بار اول بعد از ورود: انتخاب پنل
                 RoleSelectionScreen(
                     onSelectRole = { viewModel.setRole(it) }
                 )
             } else {
                 // پنل انتخاب‌شده
-                MainScreen(viewModel = viewModel, role = settings.role)
+                MainScreen(viewModel = viewModel, role = settings.role, authRepository = authRepository)
             }
         }
     }

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.classschedule.data.AppRoles
+import com.example.classschedule.data.AuthRepository
 import com.example.classschedule.data.ClassSchedule
 import com.example.classschedule.data.Homework
 import com.example.classschedule.data.HomeworkImageStore
@@ -134,7 +136,7 @@ private fun tabsForRole(role: Int): List<MainTab> = when (role) {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(viewModel: ScheduleViewModel, role: Int) {
+fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepository) {
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -277,6 +279,14 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int) {
                     }
                 },
                 actions = {
+                    // خروج از حساب — برگشت به دروازه‌ی ورود (داده‌ها دست‌نخورده می‌مانند)
+                    IconButton(onClick = { authRepository.logout() }) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = "خروج از حساب",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                     // تعویض پنل — همه‌ی نقش‌ها می‌توانند پنل عوض کنند
                     IconButton(onClick = { showRolePicker = true }) {
                         Icon(
@@ -440,7 +450,8 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int) {
                         onOpenColorSettings = { showColorDialog = true },
                         onSelectRole = { viewModel.setRole(it) },
                         schoolName = settings.schoolName,
-                        onSetSchoolName = { viewModel.setSchoolName(it) }
+                        onSetSchoolName = { viewModel.setSchoolName(it) },
+                        authRepository = authRepository
                     )
                 }
             }

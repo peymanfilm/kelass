@@ -23,7 +23,9 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -37,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,16 +49,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
 import com.example.classschedule.data.AppRoles
+import com.example.classschedule.data.AuthRepository
 
 /**
  * محتوای تب «تنظیمات» در پنل مالک برند MTM Kode:
  * ۱) نام مجموعه: مدرسه‌ای که در نوار بالای همه‌ی پنل‌ها نمایش داده می‌شود
- * ۲) ظاهر برنامه: نمای هفته/تک‌روز + رنگ برنامه (دیالوگ رنگ از MainScreen باز می‌شود)
- * ۳) تعویض پنل: پرش سریع به پنل دانش‌آموز / معلم / مدیر
- * ۴) درباره برنامه: معرفی و نکته‌ی آفلاین بودن
+ * ۲) امنیت: نام کاربری حساب و تغییر رمز عبور (دروازه‌ی ورود برنامه)
+ * ۳) ظاهر برنامه: نمای هفته/تک‌روز + رنگ برنامه (دیالوگ رنگ از MainScreen باز می‌شود)
+ * ۴) تعویض پنل: پرش سریع به پنل دانش‌آموز / معلم / مدیر
+ * ۵) درباره برنامه: معرفی و نکته‌ی آفلاین بودن
  */
 @Composable
 fun OwnerSettingsContent(
@@ -64,10 +72,13 @@ fun OwnerSettingsContent(
     onOpenColorSettings: () -> Unit,
     onSelectRole: (Int) -> Unit,
     schoolName: String,
-    onSetSchoolName: (String) -> Unit
+    onSetSchoolName: (String) -> Unit,
+    authRepository: AuthRepository
 ) {
     // دیالوگ ویرایش نام مجموعه
     var showSchoolNameDialog by remember { mutableStateOf(false) }
+    // دیالوگ تغییر رمز عبور (دروازه‌ی احراز هویت)
+    var showPasswordDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -115,6 +126,80 @@ fun OwnerSettingsContent(
                     }
                     Icon(
                         imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // ---------- امنیت و رمز عبور ----------
+        item(key = "security-card") {
+            val currentUsername by authRepository.username.collectAsState()
+            SettingsCard(title = "امنیت حساب") {
+                // ردیف نام کاربری حساب فعال
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "نام کاربری",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = currentUsername,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalThinDivider()
+
+                // ردیف تغییر رمز عبور
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            onClickLabel = "تغییر رمز عبور",
+                            onClick = { showPasswordDialog = true }
+                        )
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Password,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "تغییر رمز عبور",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "رمز دروازه‌ی ورود برنامه — هش‌شده روی خود گوشی",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronLeft,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -245,7 +330,7 @@ fun OwnerSettingsContent(
         item(key = "about-card") {
             SettingsCard(title = "درباره برنامه") {
                 AboutRow(label = "نام برنامه", value = "کلاس چی")
-                AboutRow(label = "نسخه", value = "۱٫۶")
+                AboutRow(label = "نسخه", value = "۱٫۷")
                 AboutRow(label = "سازنده و مالک برند", value = "MTM Kode")
                 AboutRow(label = "ذخیره‌سازی", value = "آفلاین روی خود گوشی")
                 Spacer(modifier = Modifier.height(8.dp))
@@ -302,6 +387,119 @@ fun OwnerSettingsContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .clickable { showSchoolNameDialog = false }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            }
+        )
+    }
+
+    // دیالوگ تغییر رمز عبور دروازه‌ی ورود — با تأیید رمز فعلی
+    if (showPasswordDialog) {
+        val context = LocalContext.current
+        var currentPassword by remember { mutableStateOf("") }
+        var newPassword by remember { mutableStateOf("") }
+        var confirmPassword by remember { mutableStateOf("") }
+        var dialogError by remember { mutableStateOf<String?>(null) }
+
+        AlertDialog(
+            onDismissRequest = { showPasswordDialog = false },
+            title = { Text(text = "تغییر رمز عبور") },
+            text = {
+                Column {
+                    Text(
+                        text = "برای امنیت، رمز جدید حداقل ۴ حرف باشد و با رمز فعلی تفاوت داشته باشد.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = currentPassword,
+                        onValueChange = {
+                            currentPassword = it
+                            dialogError = null
+                        },
+                        label = { Text(text = "رمز فعلی") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newPassword,
+                        onValueChange = {
+                            newPassword = it
+                            dialogError = null
+                        },
+                        label = { Text(text = "رمز جدید") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = {
+                            confirmPassword = it
+                            dialogError = null
+                        },
+                        label = { Text(text = "تکرار رمز جدید") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (dialogError != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = dialogError ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Text(
+                    text = "ذخیره رمز",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clickable {
+                            when {
+                                currentPassword.isEmpty() ||
+                                    newPassword.isEmpty() ||
+                                    confirmPassword.isEmpty() ->
+                                    dialogError = "همه‌ی فیلدها را پر کنید"
+                                newPassword != confirmPassword ->
+                                    dialogError = "تکرار رمز جدید با رمز جدید یکی نیست"
+                                else -> {
+                                    when (authRepository.changePassword(currentPassword, newPassword)) {
+                                        AuthRepository.ChangePasswordResult.SUCCESS -> {
+                                            showPasswordDialog = false
+                                            Toast.makeText(
+                                                context,
+                                                "رمز عبور با موفقیت عوض شد",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                        AuthRepository.ChangePasswordResult.WRONG_CURRENT ->
+                                            dialogError = "رمز فعلی درست نیست"
+                                        AuthRepository.ChangePasswordResult.TOO_SHORT ->
+                                            dialogError = "رمز جدید باید حداقل ۴ حرف باشد"
+                                        AuthRepository.ChangePasswordResult.SAME_AS_CURRENT ->
+                                            dialogError = "رمز جدید نباید با رمز فعلی یکی باشد"
+                                    }
+                                }
+                            }
+                        }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            },
+            dismissButton = {
+                Text(
+                    text = "انصراف",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clickable { showPasswordDialog = false }
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
