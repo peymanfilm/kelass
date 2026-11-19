@@ -94,6 +94,9 @@ class AuthRepository(context: Context) {
         private const val KEY_PASSWORD_HASH = "auth_password_hash"
         private const val KEY_LOGGED_IN = "auth_logged_in"
 
+        /** نمک ثابت هش رمز عبور — رمز خام هرگز ذخیره نمی‌شود */
+        private const val SALT = "kelass-mtm-kode-v1"
+
         /** حساب پیش‌فرض برنامه — کاربر می‌تواند رمز را از تنظیمات مالک برند عوض کند */
         const val DEFAULT_USERNAME = "admin"
         const val DEFAULT_PASSWORD = "1234"
