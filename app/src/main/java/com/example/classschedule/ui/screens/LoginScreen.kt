@@ -239,9 +239,9 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // ---------- چیپ‌های حساب‌ها: لمس کنید تا نام کاربری پر شود ----------
+                // ---------- چیپ‌های حساب‌ها: لمس کنید تا مستقیم وارد شوید ----------
                 Text(
-                    text = "حساب‌های برنامه (لمس کنید تا نام کاربری نوشته شود):",
+                    text = "حساب‌های برنامه (لمس کنید تا مستقیم وارد شوید):",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -255,6 +255,13 @@ fun LoginScreen(
                         onPick = {
                             username = account.username
                             errorMessage = null
+                            // ورود مستقیم با رمز پیش‌فرض — مثل دکمه‌های ورود سریع وب‌سایت؛
+                            // اگر مدیر یا مالک رمز این حساب را عوض کرده باشد، پیام راهنما نمایش داده می‌شود
+                            val picked = onLogin(account.username, AuthRepository.DEFAULT_PASSWORD)
+                            if (picked == AppRoles.ROLE_NONE) {
+                                errorMessage = "رمز حساب «${roleName(account.role)}» عوض شده است؛ " +
+                                    "نام کاربری پر شد، رمز جدید را بنویسید و «ورود به برنامه» را بزنید."
+                            }
                         }
                     )
                     Spacer(modifier = Modifier.height(6.dp))
