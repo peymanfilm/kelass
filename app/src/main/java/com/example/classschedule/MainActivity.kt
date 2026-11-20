@@ -39,8 +39,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val settingsRepository = SettingsRepository(applicationContext)
-        val authRepository = AuthRepository(applicationContext)
         val database = AppDatabase.getDatabase(applicationContext)
+        val authRepository = AuthRepository(applicationContext, database.userDao())
 
         val viewModel: ScheduleViewModel by viewModels {
             ScheduleViewModelFactory(

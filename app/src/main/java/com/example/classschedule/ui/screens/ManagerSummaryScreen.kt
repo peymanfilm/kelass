@@ -20,9 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HistoryEdu
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,6 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.classschedule.data.AppRoles
+import com.example.classschedule.data.AppUser
 import com.example.classschedule.data.ClassSchedule
 import com.example.classschedule.data.Homework
 import com.example.classschedule.data.SubjectGrade
@@ -79,9 +83,14 @@ private data class SubjectStat(
 fun ManagerSummaryContent(
     allClasses: List<ClassSchedule>,
     homeworkList: List<Homework>,
-    subjectGrades: List<SubjectGrade>
+    subjectGrades: List<SubjectGrade>,
+    users: List<AppUser> = emptyList()
 ) {
     val today = remember { jalaliToday() }
+
+    // آمار حساب‌ها — مثل تب «آمار» وب‌سایت
+    val studentCount = users.count { it.role == AppRoles.ROLE_STUDENT }
+    val teacherCount = users.count { it.role == AppRoles.ROLE_TEACHER }
 
     // تکالیف مهلت‌گذشته‌ی بدون عکس — برای شمارش منفی خودکار هر درس
     val overdueWithoutPhoto = remember(homeworkList, today) {
@@ -191,6 +200,26 @@ fun ManagerSummaryContent(
         }
 
         // ---------- شبکه آمار ----------
+        item(key = "stats-grid-users") {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatCard(
+                    icon = Icons.Default.School,
+                    value = studentCount,
+                    label = "دانش‌آموز ثبت‌شده",
+                    accent = StatGreen,
+                    container = StatGreenContainer,
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    icon = Icons.Default.HistoryEdu,
+                    value = teacherCount,
+                    label = "معلم ثبت‌شده",
+                    accent = StatOrange,
+                    container = StatOrangeContainer,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
         item(key = "stats-grid") {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StatCard(

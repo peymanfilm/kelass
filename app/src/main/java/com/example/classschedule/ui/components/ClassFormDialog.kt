@@ -52,7 +52,7 @@ import com.example.classschedule.util.toPersianDigits
 /**
  * دیالوگ افزودن / ویرایش کلاس
  * شامل: نام درس، انتخاب روز، ساعت شروع و پایان (TimePicker)،
- * نام استاد (اختیاری)، شماره کلاس (اختیاری) و انتخاب رنگ کارت
+ * نام معلم (با انتخاب سریع از فهرست حساب‌های معلم — مثل وب‌سایت)، شماره کلاس (اختیاری) و انتخاب رنگ کارت
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -60,6 +60,7 @@ fun ClassFormDialog(
     editingClass: ClassSchedule?,
     initialDay: Int,
     suggestedColorIndex: Int,
+    teacherOptions: List<String> = emptyList(),
     onDismiss: () -> Unit,
     onSave: (ClassSchedule) -> Unit
 ) {
@@ -180,14 +181,38 @@ fun ClassFormDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // نام استاد (اختیاری)
+                // نام معلم (اختیاری) — با انتخاب سریع از بین حساب‌های معلم ساخته‌شده در تب «حساب‌ها»
                 OutlinedTextField(
                     value = teacher,
                     onValueChange = { teacher = it },
-                    label = { Text(text = "نام استاد (اختیاری)") },
+                    label = { Text(text = "نام معلم (اختیاری)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                if (teacherOptions.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "انتخاب سریع معلم:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        teacherOptions.forEach { option ->
+                            FilterChip(
+                                selected = teacher == option,
+                                onClick = {
+                                    teacher = if (teacher == option) "" else option
+                                },
+                                label = { Text(text = option) }
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 

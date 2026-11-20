@@ -2,23 +2,32 @@ package com.example.classschedule.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 
 /**
  * دروازه‌ی احراز هویت برنامه «کلاس چی» — کاملاً آفلاین و روی خود گوشی:
  *
- * - چهار حساب نقش‌محور (هم‌تراز با وب‌سایت) با نام کاربری و رمز جداگانه:
- *   دانش‌آموز (student1) / معلم (teacher1) / مدیر (manager) / مالک برند MTM Kode (owner)
- * - رمز پیش‌فرض همه‌ی حساب‌ها «۱۲۳۴» است؛ مدیر می‌تواند نام کاربری و رمز حساب
- *   دانش‌آموزان و معلمان را عوض کند و مالک برند علاوه بر آن‌ها، حساب مدیر را هم.
+ * - حساب‌ها مثل وب‌سایت در جدول کاربران نگه داشته می‌شوند؛ مدیر می‌تواند هر تعداد
+ *   حساب دانش‌آموز و معلم بسازد و مالک برند MTM Kode علاوه بر آن‌ها، حساب مدیر را هم
+ *   می‌سازد و نام کاربری و رمز همه را عوض می‌کند.
+ * - حساب‌های پیش‌فرض (student1 / teacher1 / manager / owner) با رمز «۱۲۳۴» در اولین اجرا
+ *   ساخته می‌شوند و حساب‌های شخصی‌سازی‌شده‌ی نسخه‌های قبل (در SharedPreferences) به جدول
+ *   منتقل می‌شوند تا هیچ رمز عوض‌شده‌ای از بین نرود.
  * - رمز عبور هرگز به صورت خام ذخیره نمی‌شود؛ فقط هش SHA-256 آن نگه داشته می‌شود
- * - حساب قدیمی نسخه‌ی قبل (admin) در اولین اجرا به حساب مالک برند منتقل می‌شود
+ * - حساب قدیمی نسخه‌های قبل (admin) به حساب مالک برند منتقل می‌شود
  */
-class AuthRepository(context: Context) {
+class AuthRepository(
+    context: Context,
+    private val userDao: UserDao
+) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -27,12 +36,12 @@ class AuthRepository(context: Context) {
     private val _isLoggedIn = MutableStateFlow(prefs.getBoolean(KEY_LOGGED_IN, false))
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    /** اطلاعات یک حساب: نقش + نام کاربری فعلی */
-    data class Account(val role: Int, val username: String)
+    /** فهرست زنده‌ی همه‌ی حساب‌ها — صفحه ورود و تب «حساب‌ها» به آن گوش می‌دهند */
+    val usersFlow: Flow<List<AppUser>> = userDao.observeAll()
 
     init {
-        migrateLegacyAccountIfNeeded()
-        ensureDefaultAccounts()
+        // ساخت حساب‌های پیش‌فرض و انتقال حساب‌های قدیمی — یک‌بار در اولین اجرا
+        runBlocking { withContext(Dispatchers.IO) { seedUsersIfNeeded() } }
     }
 
     /**
@@ -56,20 +65,51 @@ class AuthRepository(context: Context) {
             .apply()
     }
 
-    /** ساختن حساب‌های پیش‌فرض برای نقش‌هایی که هنوز حساب ندارند */
-    private fun ensureDefaultAccounts() {
+    /**
+     * اگر جدول کاربران خالی باشد، حساب هر نقش از تنظیمات نسخه‌ی قبل (نام کاربری و رمز
+     * احتمالاً شخصی‌سازی‌شده) یا از مقادیر پیش‌فرض ساخته می‌شود.
+     */
+    private suspend fun seedUsersIfNeeded() {
+        migrateLegacyAccountIfNeeded()
+        if (userDao.count() > 0) return
+        for (role in ACCOUNT_ROLES) {
+            val username = prefs.getString(usernameKey(role), null) ?: defaultUsername(role)
+            val passwordHash = prefs.getString(passwordHashKey(role), null)
+                ?: hash(DEFAULT_PASSWORD)
+            userDao.insert(
+                AppUser(
+                    name = defaultName(role, username),
+                    username = username,
+                    passwordHash = passwordHash,
+                    role = role
+                )
+            )
+        }
+        // کلیدهای قدیمی نقش‌محور دیگر لازم نیستند — از این پس جدول کاربران مرجع است
         val editor = prefs.edit()
         for (role in ACCOUNT_ROLES) {
-            if (!prefs.contains(usernameKey(role))) {
-                editor.putString(usernameKey(role), defaultUsername(role))
-                editor.putString(passwordHashKey(role), hash(DEFAULT_PASSWORD))
-            }
+            editor.remove(usernameKey(role)).remove(passwordHashKey(role))
         }
         editor.apply()
     }
 
+    /** نام نمایشی پیش‌فرض هر حساب — هم‌تراز با حساب‌های نمونه‌ی وب‌سایت */
+    private fun defaultName(role: Int, username: String): String = when {
+        role == AppRoles.ROLE_OWNER -> "مالک برند MTM Kode"
+        username != defaultUsername(role) -> when (role) {
+            AppRoles.ROLE_TEACHER -> "معلم"
+            AppRoles.ROLE_MANAGER -> "مدیر"
+            else -> "دانش‌آموز"
+        }
+        role == AppRoles.ROLE_MANAGER -> "مدیر مدرسه"
+        role == AppRoles.ROLE_TEACHER -> "معلم"
+        else -> "دانش‌آموز"
+    }
+
+    // ------------------------------ ورود و خروج ------------------------------
+
     /**
-     * بررسی نام کاربری و رمز عبور روی هر چهار حساب:
+     * بررسی نام کاربری و رمز عبور در جدول کاربران:
      * اگر درست بود، وضعیت «واردشده» ذخیره و نقشِ حساب برگردانده می‌شود؛
      * در غیر این صورت ROLE_NONE برمی‌گردد (یعنی نام کاربری یا رمز اشتباه است).
      */
@@ -77,42 +117,46 @@ class AuthRepository(context: Context) {
         val cleanUser = username.trim()
         if (cleanUser.isEmpty() || password.isEmpty()) return AppRoles.ROLE_NONE
 
-        for (role in ACCOUNT_ROLES) {
-            val savedUser = prefs.getString(usernameKey(role), null) ?: continue
-            val savedHash = prefs.getString(passwordHashKey(role), null) ?: continue
-            if (cleanUser == savedUser && hash(password) == savedHash) {
-                prefs.edit().putBoolean(KEY_LOGGED_IN, true).apply()
-                _isLoggedIn.update { true }
-                return role
-            }
-        }
-        return AppRoles.ROLE_NONE
+        val user = runBlocking {
+            withContext(Dispatchers.IO) { userDao.findByUsername(cleanUser) }
+        } ?: return AppRoles.ROLE_NONE
+
+        if (hash(password) != user.passwordHash) return AppRoles.ROLE_NONE
+
+        prefs.edit()
+            .putBoolean(KEY_LOGGED_IN, true)
+            .putInt(KEY_CURRENT_USER_ID, user.id)
+            .apply()
+        _isLoggedIn.update { true }
+        return user.role
     }
 
     /** خروج از حساب: وضعیت ورود پاک می‌شود و صفحه ورود دوباره باز می‌شود (داده‌ها دست‌نخورده می‌مانند) */
     fun logout() {
-        prefs.edit().putBoolean(KEY_LOGGED_IN, false).apply()
+        prefs.edit()
+            .putBoolean(KEY_LOGGED_IN, false)
+            .putInt(KEY_CURRENT_USER_ID, -1)
+            .apply()
         _isLoggedIn.update { false }
     }
 
-    /** فهرست همه‌ی حساب‌ها با نام کاربری فعلی — برای نمایش در صفحه ورود و مدیریت حساب‌ها */
-    fun accounts(): List<Account> =
-        ACCOUNT_ROLES.map { role ->
-            Account(
-                role = role,
-                username = prefs.getString(usernameKey(role), defaultUsername(role))
-                    ?: defaultUsername(role)
-            )
-        }
+    /** شناسه‌ی حساب واردشده — برای پیدا کردن ردیف او در فهرست کاربران */
+    fun currentUserId(): Int = prefs.getInt(KEY_CURRENT_USER_ID, -1)
 
-    /** نام کاربری فعلی یک نقش */
-    fun usernameOf(role: Int): String =
-        prefs.getString(usernameKey(role), defaultUsername(role)) ?: defaultUsername(role)
+    /** نام کاربری فعلی اولین حساب یک نقش — در تنظیمات مالک برند استفاده می‌شود */
+    fun usernameOf(role: Int): String {
+        val user = runBlocking {
+            withContext(Dispatchers.IO) { userDao.firstByRole(role) }
+        }
+        return user?.username ?: defaultUsername(role)
+    }
+
+    // ------------------------------ قوانین دسترسی ------------------------------
 
     /**
      * آیا این نقش اجازه‌ی تغییر حساب نقش مقصد را دارد؟
      * - مدیر: فقط حساب‌های دانش‌آموز و معلم
-     * - مالک برند MTM Kode: حساب‌های دانش‌آموز، معلم و مدیر (به‌علاوه حساب خودش از تنظیمات)
+     * - مالک برند MTM Kode: حساب‌های دانش‌آموز، معلم و مدیر (حساب خودش از تنظیمات تغییر می‌کند)
      */
     fun canEditAccount(callerRole: Int, targetRole: Int): Boolean = when (callerRole) {
         AppRoles.ROLE_OWNER ->
@@ -124,23 +168,31 @@ class AuthRepository(context: Context) {
         else -> false
     }
 
+    /** آیا این نقش اجازه‌ی ساختن حساب تازه‌ی نقش داده‌شده را دارد؟ */
+    fun canAddUser(callerRole: Int, role: Int): Boolean = canEditAccount(callerRole, role)
+
+    // ------------------------------ مدیریت حساب‌ها ------------------------------
+
     /**
-     * تغییر نام کاربری و رمز عبور حساب یک نقش (مدیریت حساب‌ها):
+     * تغییر نام، نام کاربری و رمز عبور یک حساب (مدیریت حساب‌ها):
      * - رمز جدید خالی باشد یعنی رمز فعلی دست نمی‌خورد
      * - نتیجه به شکل کد بازگردانده می‌شود تا پیام فارسی دقیق در UI نمایش داده شود
      */
-    fun updateAccount(
+    fun updateUser(
         callerRole: Int,
-        targetRole: Int,
+        targetUserId: Int,
+        newName: String,
         newUsername: String,
         newPassword: String
     ): UpdateAccountResult {
-        if (!canEditAccount(callerRole, targetRole)) return UpdateAccountResult.NO_PERMISSION
+        val user = runBlocking {
+            withContext(Dispatchers.IO) { userDao.byId(targetUserId) }
+        } ?: return UpdateAccountResult.NOT_FOUND
+
+        if (!canEditAccount(callerRole, user.role)) return UpdateAccountResult.NO_PERMISSION
 
         val cleanUser = newUsername.trim()
-        val currentUsername = usernameOf(targetRole)
-        val usernameChanged = cleanUser != currentUsername
-
+        val cleanName = newName.trim()
         if (cleanUser.isEmpty() ||
             cleanUser.length < MIN_USERNAME_LENGTH ||
             cleanUser.any { it.isWhitespace() }
@@ -148,46 +200,127 @@ class AuthRepository(context: Context) {
             return UpdateAccountResult.INVALID_USERNAME
         }
 
-        if (usernameChanged) {
-            val taken = ACCOUNT_ROLES.any { role ->
-                role != targetRole && usernameOf(role).equals(cleanUser, ignoreCase = true)
+        if (cleanUser != user.username) {
+            val taken = runBlocking {
+                withContext(Dispatchers.IO) { userDao.findByUsername(cleanUser) }
             }
-            if (taken) return UpdateAccountResult.USERNAME_TAKEN
+            if (taken != null && taken.id != user.id) return UpdateAccountResult.USERNAME_TAKEN
         }
 
         val passwordChanged = newPassword.isNotEmpty()
         if (passwordChanged && newPassword.length < MIN_PASSWORD_LENGTH) {
             return UpdateAccountResult.PASSWORD_TOO_SHORT
         }
-        if (!usernameChanged && !passwordChanged) {
+        if (!passwordChanged && cleanUser == user.username && cleanName == user.name) {
             return UpdateAccountResult.NOTHING_CHANGED
         }
 
-        val editor = prefs.edit()
-        editor.putString(usernameKey(targetRole), cleanUser)
-        if (passwordChanged) {
-            editor.putString(passwordHashKey(targetRole), hash(newPassword))
-        }
-        editor.apply()
+        val updated = user.copy(
+            name = cleanName.ifBlank { user.name },
+            username = cleanUser,
+            passwordHash = if (passwordChanged) hash(newPassword) else user.passwordHash
+        )
+        runBlocking { withContext(Dispatchers.IO) { userDao.update(updated) } }
         return UpdateAccountResult.SUCCESS
     }
 
     enum class UpdateAccountResult {
         SUCCESS,           // حساب با موفقیت به‌روزرسانی شد
-        NO_PERMISSION,     // این نقش اجازه‌ی تغییر حساب مقصد را ندارد
+        NO_PERMISSION,     // این نقش اجازه‌ی تغییر این حساب را ندارد
+        NOT_FOUND,         // حساب پیدا نشد
         INVALID_USERNAME,  // نام کاربری خالی، کوتاه یا دارای فاصله است
         USERNAME_TAKEN,    // این نام کاربری برای حساب دیگری گرفته شده است
         PASSWORD_TOO_SHORT,// رمز جدید خیلی کوتاه است
-        NOTHING_CHANGED    // نام کاربری همان قبلی است و رمز هم خالی مانده
+        NOTHING_CHANGED    // هیچ چیزی عوض نشده است
     }
+
+    /**
+     * ساختن حساب تازه (مثل تب «کاربران» وب‌سایت):
+     * - مدیر: حساب دانش‌آموز و معلم
+     * - مالک برند: حساب دانش‌آموز، معلم و مدیر
+     */
+    fun addUser(
+        callerRole: Int,
+        role: Int,
+        name: String,
+        username: String,
+        password: String
+    ): AddUserResult {
+        if (!canAddUser(callerRole, role)) return AddUserResult.NO_PERMISSION
+
+        val cleanUser = username.trim()
+        val cleanName = name.trim().ifBlank { defaultName(role, "") }
+        if (cleanUser.isEmpty() ||
+            cleanUser.length < MIN_USERNAME_LENGTH ||
+            cleanUser.any { it.isWhitespace() }
+        ) {
+            return AddUserResult.INVALID_USERNAME
+        }
+        if (password.length < MIN_PASSWORD_LENGTH) {
+            return AddUserResult.PASSWORD_TOO_SHORT
+        }
+        val taken = runBlocking {
+            withContext(Dispatchers.IO) { userDao.findByUsername(cleanUser) }
+        }
+        if (taken != null) return AddUserResult.USERNAME_TAKEN
+
+        runBlocking {
+            withContext(Dispatchers.IO) {
+                userDao.insert(
+                    AppUser(
+                        name = cleanName,
+                        username = cleanUser,
+                        passwordHash = hash(password),
+                        role = role
+                    )
+                )
+            }
+        }
+        return AddUserResult.SUCCESS
+    }
+
+    enum class AddUserResult {
+        SUCCESS,           // حساب ساخته شد
+        NO_PERMISSION,     // این نقش اجازه‌ی ساختن این نوع حساب را ندارد
+        INVALID_USERNAME,  // نام کاربری خالی، کوتاه یا دارای فاصله است
+        USERNAME_TAKEN,    // این نام کاربری قبلاً گرفته شده است
+        PASSWORD_TOO_SHORT // رمز خیلی کوتاه است
+    }
+
+    /**
+     * حذف یک حساب — با همان قوانین دسترسی تغییر حساب‌ها؛
+     * حذف حسابی که با آن وارد شده‌ایم مجاز نیست.
+     */
+    fun deleteUser(callerRole: Int, targetUserId: Int): DeleteUserResult {
+        val user = runBlocking {
+            withContext(Dispatchers.IO) { userDao.byId(targetUserId) }
+        } ?: return DeleteUserResult.NOT_FOUND
+
+        if (!canEditAccount(callerRole, user.role)) return DeleteUserResult.NO_PERMISSION
+        if (targetUserId == currentUserId()) return DeleteUserResult.CANNOT_DELETE_SELF
+
+        runBlocking { withContext(Dispatchers.IO) { userDao.delete(user) } }
+        return DeleteUserResult.SUCCESS
+    }
+
+    enum class DeleteUserResult {
+        SUCCESS,            // حساب حذف شد
+        NO_PERMISSION,      // این نقش اجازه‌ی حذف این حساب را ندارد
+        NOT_FOUND,          // حساب پیدا نشد
+        CANNOT_DELETE_SELF  // نمی‌توان حسابی را حذف کرد که با آن وارد شده‌ایم
+    }
+
+    // ------------------------------ حساب خودِ مالک برند ------------------------------
 
     /**
      * تغییر نام کاربری حساب خودِ مالک برند — با تأیید رمز فعلی.
      */
     fun changeSelfUsername(currentPassword: String, newUsername: String): SelfUsernameResult {
-        val ownerHash = prefs.getString(passwordHashKey(AppRoles.ROLE_OWNER), null)
-            ?: hash(DEFAULT_PASSWORD)
-        if (hash(currentPassword) != ownerHash) {
+        val owner = runBlocking {
+            withContext(Dispatchers.IO) { userDao.firstByRole(AppRoles.ROLE_OWNER) }
+        } ?: return SelfUsernameResult.INVALID_USERNAME
+
+        if (hash(currentPassword) != owner.passwordHash) {
             return SelfUsernameResult.WRONG_PASSWORD
         }
         val cleanUser = newUsername.trim()
@@ -197,12 +330,12 @@ class AuthRepository(context: Context) {
         ) {
             return SelfUsernameResult.INVALID_USERNAME
         }
-        val taken = ACCOUNT_ROLES.any { role ->
-            role != AppRoles.ROLE_OWNER &&
-                usernameOf(role).equals(cleanUser, ignoreCase = true)
+        val taken = runBlocking {
+            withContext(Dispatchers.IO) { userDao.findByUsername(cleanUser) }
         }
-        if (taken) return SelfUsernameResult.USERNAME_TAKEN
-        prefs.edit().putString(usernameKey(AppRoles.ROLE_OWNER), cleanUser).apply()
+        if (taken != null && taken.id != owner.id) return SelfUsernameResult.USERNAME_TAKEN
+
+        runBlocking { withContext(Dispatchers.IO) { userDao.update(owner.copy(username = cleanUser)) } }
         return SelfUsernameResult.SUCCESS
     }
 
@@ -218,9 +351,11 @@ class AuthRepository(context: Context) {
      * نتیجه به شکل کد بازگردانده می‌شود تا پیام فارسی دقیق در UI نمایش داده شود.
      */
     fun changePassword(currentPassword: String, newPassword: String): ChangePasswordResult {
-        val ownerHash = prefs.getString(passwordHashKey(AppRoles.ROLE_OWNER), null)
-            ?: hash(DEFAULT_PASSWORD)
-        if (hash(currentPassword) != ownerHash) {
+        val owner = runBlocking {
+            withContext(Dispatchers.IO) { userDao.firstByRole(AppRoles.ROLE_OWNER) }
+        } ?: return ChangePasswordResult.WRONG_CURRENT
+
+        if (hash(currentPassword) != owner.passwordHash) {
             return ChangePasswordResult.WRONG_CURRENT
         }
         if (newPassword.length < MIN_PASSWORD_LENGTH) {
@@ -229,7 +364,11 @@ class AuthRepository(context: Context) {
         if (newPassword == currentPassword) {
             return ChangePasswordResult.SAME_AS_CURRENT
         }
-        prefs.edit().putString(passwordHashKey(AppRoles.ROLE_OWNER), hash(newPassword)).apply()
+        runBlocking {
+            withContext(Dispatchers.IO) {
+                userDao.update(owner.copy(passwordHash = hash(newPassword)))
+            }
+        }
         return ChangePasswordResult.SUCCESS
     }
 
@@ -243,6 +382,7 @@ class AuthRepository(context: Context) {
     companion object {
         private const val PREFS_NAME = "app_auth"
         private const val KEY_LOGGED_IN = "auth_logged_in"
+        private const val KEY_CURRENT_USER_ID = "auth_current_user_id"
 
         // کلیدهای حساب قدیمی نسخه‌های قبل — فقط برای مهاجرت خوانده و پاک می‌شوند
         private const val KEY_LEGACY_USERNAME = "auth_username"

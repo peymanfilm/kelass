@@ -27,6 +27,9 @@ data class Homework(
     // نام فایل عکس‌های تکلیف جدا شده با «;» — خود فایل‌ها در پوشه‌ی homework_images حافظه‌ی برنامه هستند
     @ColumnInfo(defaultValue = "")
     val imageNames: String = "",
+    // نام نمایشی کسی که تکلیف را ثبت کرده (معلم یا دانش‌آموز) — مثل «ثبت‌کننده» در وب‌سایت
+    @ColumnInfo(defaultValue = "")
+    val creatorName: String = "",
     val createdAt: Long = 0L    // زمان ثبت به میلی‌ثانیه
 ) {
     /** تاریخ شمسی مهلت به‌شکل JalaliDate برای نمایش و مقایسه */

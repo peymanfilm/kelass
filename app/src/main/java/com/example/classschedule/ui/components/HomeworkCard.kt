@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -232,6 +233,17 @@ fun HomeworkCard(
                     HomeworkInfoRow(
                         icon = Icons.Default.MenuBook,
                         text = homework.subject,
+                        accent = scheme.accent,
+                        contentColor = scheme.onContainer
+                    )
+                }
+
+                // ثبت‌کننده‌ی تکلیف (مثل نام معلم روی کارت تکلیف در وب‌سایت)
+                if (homework.creatorName.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    HomeworkInfoRow(
+                        icon = Icons.Default.Person,
+                        text = "ثبت‌کننده: ${homework.creatorName}",
                         accent = scheme.accent,
                         contentColor = scheme.onContainer
                     )

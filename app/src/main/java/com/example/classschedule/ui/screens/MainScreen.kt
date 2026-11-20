@@ -151,6 +151,10 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
     val settings by viewModel.settings.collectAsState()
     val isWeekView = settings.viewMode == VIEW_MODE_WEEK
 
+    // فهرست زنده‌ی حساب‌ها (مثل تب «کاربران» وب‌سایت) + حسابِ واردشده
+    val users by authRepository.usersFlow.collectAsState(initial = emptyList())
+    val currentUser = users.firstOrNull { it.id == authRepository.currentUserId() }
+
     // تب‌های مخصوص این نقش + تب فعال (با عوض شدن نقش، به تب اول برمی‌گردد)
     val mainTabs = remember(role) { tabsForRole(role) }
     var selectedMainTab by remember(role) { mutableIntStateOf(0) }
@@ -238,9 +242,14 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(text = "کلاس چی — ${roleTitle(role)}")
-                        if (settings.schoolName.isNotBlank()) {
+                        // نام مجموعه (اگر مالک برند ثبت کرده باشد) + نام کاربر واردشده
+                        val subtitle = listOf(
+                            settings.schoolName,
+                            currentUser?.name?.trim().orEmpty()
+                        ).filter { it.isNotBlank() }.joinToString(" • ")
+                        if (subtitle.isNotBlank()) {
                             Text(
-                                text = settings.schoolName,
+                                text = subtitle,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
                                 maxLines = 1,
@@ -440,11 +449,13 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
                     TabKind.SUMMARY -> ManagerSummaryContent(
                         allClasses = allClasses,
                         homeworkList = allHomework,
-                        subjectGrades = allSubjectGrades
+                        subjectGrades = allSubjectGrades,
+                        users = users
                     )
                     TabKind.ACCOUNTS -> AccountsContent(
                         callerRole = role,
-                        authRepository = authRepository
+                        authRepository = authRepository,
+                        users = users
                     )
                     TabKind.SETTINGS -> OwnerSettingsContent(
                         isWeekView = isWeekView,
@@ -472,6 +483,12 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
             suggestedColorIndex = allClasses
                 .filter { it.day == formDay }
                 .size % ClassColors.count,
+            // انتخاب سریع معلم از بین حساب‌های معلم — مثل انتخاب معلم کلاس در وب‌سایت
+            teacherOptions = users
+                .filter { it.role == AppRoles.ROLE_TEACHER }
+                .map { it.name.trim() }
+                .filter { it.isNotBlank() }
+                .distinct(),
             onDismiss = { showFormDialog = false },
             onSave = { saved ->
                 if (editingClass == null) {
@@ -530,7 +547,10 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
             onDismiss = { showHomeworkDialog = false },
             onSave = { saved ->
                 if (editingHomework == null) {
-                    viewModel.addHomework(saved)
+                    // نام ثبت‌کننده با حساب واردشده پر می‌شود — مثل «معلم» روی کارت تکلیف در وب‌سایت
+                    viewModel.addHomework(
+                        saved.copy(creatorName = currentUser?.name?.trim().orEmpty())
+                    )
                 } else {
                     viewModel.updateHomework(saved)
                 }
@@ -630,7 +650,8 @@ fun MainScreen(viewModel: ScheduleViewModel, role: Int, authRepository: AuthRepo
  */
 private fun showFabFor(kind: TabKind, role: Int): Boolean = when (kind) {
     TabKind.SCHEDULE ->
-        role == AppRoles.ROLE_STUDENT || role == AppRoles.ROLE_OWNER
+        // مدیر مثل وب‌سایت می‌تواند کلاس‌های برنامه هفتگی را بسازد
+        role == AppRoles.ROLE_STUDENT || role == AppRoles.ROLE_MANAGER || role == AppRoles.ROLE_OWNER
     TabKind.HOMEWORK ->
         role == AppRoles.ROLE_STUDENT ||
         role == AppRoles.ROLE_TEACHER || role == AppRoles.ROLE_OWNER

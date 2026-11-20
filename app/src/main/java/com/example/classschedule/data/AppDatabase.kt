@@ -8,13 +8,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * دیتابیس اصلی Room — نسخه ۴: افزوده شدن جدول کارنامه (subject_grade)
+ * دیتابیس اصلی Room — نسخه ۵: جدول حساب‌های کاربران (app_user) مثل وب‌سایت +
+ * ستون «ثبت‌کننده» برای تکالیف
  * داده‌ها به صورت محلی و آفلاین ذخیره می‌شوند و با بستن برنامه پاک نمی‌شوند.
  * مهاجرت‌ها، داده‌های ثبت‌شده‌ی کاربر را بدون تغییر نگه می‌دارند.
  */
 @Database(
-    entities = [ClassSchedule::class, Homework::class, SubjectGrade::class],
-    version = 4,
+    entities = [ClassSchedule::class, Homework::class, SubjectGrade::class, AppUser::class],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,6 +25,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun homeworkDao(): HomeworkDao
 
     abstract fun subjectGradeDao(): SubjectGradeDao
+
+    abstract fun userDao(): UserDao
 
     companion object {
 
@@ -72,6 +75,29 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * مهاجرت نسخه ۴ به ۵: ساخت جدول حساب‌های کاربران (مدیریت چند دانش‌آموز، معلم و مدیر
+         * مثل وب‌سایت) + ستون «ثبت‌کننده» برای تکالیف — داده‌های قبلی دست‌نخورده می‌مانند
+         */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `app_user` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`name` TEXT NOT NULL, " +
+                        "`username` TEXT NOT NULL, " +
+                        "`passwordHash` TEXT NOT NULL, " +
+                        "`role` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_app_user_username` ON `app_user` (`username`)"
+                )
+                db.execSQL(
+                    "ALTER TABLE `homework` ADD COLUMN `creatorName` TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -83,7 +109,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "class_schedule_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }
